@@ -9,6 +9,7 @@ from models.gemini import model
 
 
 imageAgent = Agent(
+    name="ImageAgent",
     model = model,
     markdown=False,
     description=Image_prompt,    

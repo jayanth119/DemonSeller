@@ -9,6 +9,7 @@ from models.gemini import model
 
 
 videoAgent = Agent(
+    name="VideoAgent",
     model = model,
     markdown=False,
     description=Video_prompt,    

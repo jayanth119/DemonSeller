@@ -1,42 +1,39 @@
 from agno.tools import tool
 import os
 
-# @tool(show_result=True, stop_after_tool_call=True)
-def load_txt_files_from_directory(directory_path):
+@tool(description="Load and process text files from a directory")
+def load_txt_files_from_directory(directory_path: str):
     """
-    Load text files from a directory and return their combined content as a single string.
+    Load text files from a directory and return their combined content.
+    
+    Args:
+        directory_path (str): Path to directory containing text files
+        
+    Returns:
+        str: Combined content of all text files
     """
     if not os.path.isdir(directory_path):
-        raise ValueError(f"{directory_path} is not a valid directory.")
-    txt_files = [
-        os.path.join(directory_path, file)
-        for file in os.listdir(directory_path)
-        if file.lower().endswith(".txt") and os.path.isfile(os.path.join(directory_path, file))
-    ]
-    if not txt_files:
-        raise ValueError(f"No .txt files found in {directory_path}")
-    combined_text = ""
+        return f"Invalid directory: {directory_path}"
     
+    txt_files = []
+    for file in os.listdir(directory_path):
+        if file.lower().endswith(".txt"):
+            full_path = os.path.join(directory_path, file)
+            if os.path.isfile(full_path):
+                txt_files.append(full_path)
+    
+    if not txt_files:
+        return f"No .txt files found in {directory_path}"
+    
+    combined_text = ""
     for file_path in txt_files:
-        with open(file_path, "r", encoding="utf-8") as f:
-            combined_text += f.read() + "\n"
-    print(combined_text)
-    return combined_text
-
-
-
-
-
-
-# @tool(show_result=True, stop_after_tool_call=True)
-# def load_txt_files_from_directory(directory_path):
-#     """
-#     Load text files from a directory and return their combined content as a single string.
-#     """
-#     api_key = "AIzaSyCjz77h8Q3s3sa9XFx4jWm9qNio23ttxe8" 
-#     txt_tool = TextTool(api_key=api_key, model="gemini", folder=directory_path)
-#     txt_summaries = txt_tool.analyze_folder()
-#     return  json.dumps(txt_summaries, indent=2)
-
-
-
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                file_content = f.read().strip()
+                if file_content:
+                    combined_text += f"\n--- Content from {os.path.basename(file_path)} ---\n"
+                    combined_text += file_content + "\n"
+        except Exception as e:
+            combined_text += f"\n--- Error reading {os.path.basename(file_path)}: {str(e)} ---\n"
+    
+    return combined_text if combined_text else "No readable content found in text files"

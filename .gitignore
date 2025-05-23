@@ -2,3 +2,4 @@ env
 Flats
 .DS_Store
 langtool
+__pycache__
