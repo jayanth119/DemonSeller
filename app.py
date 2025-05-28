@@ -7,9 +7,11 @@ import os
 import shutil
 from PIL import Image
 import json
+from datetime import datetime
 
 # Import your agent (adjust the import path as needed)
 from agents.mainAgent import flat_seller_team
+from models.vectorStore import PropertyVectorStore
 
 app = FastAPI(title="FlatSeller AI API", version="1.0.0")
 
@@ -29,6 +31,9 @@ class AnalysisResponse(BaseModel):
     success: bool
     message: str
     analysis: Optional[str] = None
+
+# Initialize vector store
+vector_store = PropertyVectorStore()
 
 @app.get("/")
 async def root():
@@ -171,8 +176,4 @@ async def analyze_multimodal(
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "FlatSeller AI API"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    return {"status": "healthy", "service": "FlatSeller AI API"} 
