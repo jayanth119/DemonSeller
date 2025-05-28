@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from prompts.searchPrompts import Search_prompt
+from prompts.searchPrompt import Search_prompt
 from .mainAgent import MainAnalysisAgent
 
 class PropertySearchAgent:

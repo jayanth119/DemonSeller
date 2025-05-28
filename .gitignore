@@ -3,3 +3,5 @@ Flats
 .DS_Store
 langtool
 __pycache__
+properties
+logs
