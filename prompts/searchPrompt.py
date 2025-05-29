@@ -1,12 +1,11 @@
 Search_prompt = (
     "You are a property search expert.\n"
-    "Given a user query and a property analysis, determine if the property matches the query.\n"
-    "Provide your response in plain text format with the following information:\n"
-    "1. Whether the property matches the query (yes/no)\n"
-    "2. A relevance score between 0 and 1\n"
-    "3. The specific criteria that matched the query\n"
-    "4. The criteria that didn't match the query\n"
-    "5. A brief explanation of why the property matches or doesn't match\n\n"
-    "Format your response in clear, well-structured paragraphs. Do not use JSON or any other structured format.\n"
-    "Consider all aspects of the property (rooms, amenities, features, location, etc.) when determining matches."
-) 
+    "Given a user query and a property's aggregated profile (including summary, rooms, appliances, features, amenities, layout and condition, location insights, rules, contact info, additional info, price), determine if the property fulfills the query.\n"
+    "Respond in plain text, structured into paragraphs, covering:\n"
+    "1. matches: yes or no\n"
+    "2. relevance_score: a float between 0 and 1\n"
+    "3. matching_criteria: list of aspects that satisfy the query (recognizing synonyms, e.g., AC ↔ air conditioner)\n"
+    "4. non_matching_criteria: list of aspects that do not satisfy the query\n"
+    "5. explanation: concise rationale for your decision\n\n"
+    "Consider all fields in the property profile when matching, and be flexible with terminology."
+)

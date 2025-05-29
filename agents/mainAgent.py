@@ -2,13 +2,24 @@ from agno.agent import Agent
 import os
 import sys
 import json
+import re
 from pathlib import Path
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from prompts.mainPrompts import Main_prompt
 from models.gemini import model
-from .imageAgent import ImageAnalysisAgent
-from .videoAgent import VideoAnalysisAgent
-from .textAgent import TextAnalysisAgent
+from agents.imageAgent import ImageAnalysisAgent
+from agents.videoAgent import VideoAnalysisAgent
+from agents.textAgent import TextAnalysisAgent
+
+
+def clean_json_string(s: str) -> str:
+    """
+    Remove markdown code fences and extraneous backticks from a JSON string.
+    """
+    s = re.sub(r"```(?:json)?\n", "", s)
+    s = s.replace("```", "")
+    return s.strip()
 
 class MainAnalysisAgent:
     def __init__(self):
@@ -22,75 +33,127 @@ class MainAnalysisAgent:
         self.video_agent = VideoAnalysisAgent()
         self.text_agent = TextAnalysisAgent()
 
-    def analyze_property(self, property_path):
-        """Analyze a property using all available data sources"""
-        results = {
-            "image_analysis": None,
-            "video_analysis": None,
-            "text_analysis": None
+    def merge_analyses(self, analyses):
+        """
+        Merge JSON outputs from image, video, and text analyses into a single cohesive dict.
+        If an appliance appears in all three sources, use the minimum reported count; otherwise, sum the counts.
+        """
+        merged = {
+            "rooms": set(),
+            "appliances": {},
+            "features": set(),
+            "Property details": {},
+            "Available amenities and facilities": set(),
+            "Property rules and restrictions": None,
+            "Additional relevant information": set(),
+            "layout": None,
+            "condition": None,
+            "space_quality": None,
+            "location_details": set(),
+            "Contact information for inquiries": None
         }
+        # Collect appliance counts across sources
+        appliance_counts = {}
+        for src in analyses:
+            if not src or not isinstance(src, dict):
+                continue
+            # rooms
+            for r in src.get("rooms", []): merged["rooms"].add(r)
+            # features
+            for f in src.get("features", []): merged["features"].add(f)
+            # property details
+            for key, val in src.get("Property details", {}).items():
+                merged["Property details"].setdefault(key, val)
+            # amenities
+            for a in src.get("Available amenities and facilities", []): merged["Available amenities and facilities"].add(a)
+            # rules
+            if src.get("Property rules and restrictions"):
+                merged["Property rules and restrictions"] = src["Property rules and restrictions"]
+            # additional info
+            for info in src.get("Additional relevant information", []): merged["Additional relevant information"].add(info)
+            # layout, condition, space_quality
+            if src.get("layout"): merged["layout"] = src["layout"]
+            if src.get("condition"): merged["condition"] = src["condition"]
+            if src.get("space_quality"): merged["space_quality"] = src["space_quality"]
+            # location insights
+            for loc in src.get("Nearby landmarks", []): merged["location_details"].add(loc)
+            # contact
+            if src.get("Contact information for inquiries"):
+                merged["Contact information for inquiries"] = src["Contact information for inquiries"]
+            # appliances: accumulate counts
+            for k, v in src.get("appliances", {}).items():
+                appliance_counts.setdefault(k, []).append(v)
+        # Apply counting rule: min if appears in all three analyses, else sum
+        total_sources = len([src for src in analyses if isinstance(src, dict)])
+        for appliance, counts in appliance_counts.items():
+            if len(counts) == total_sources:
+                merged["appliances"][appliance] = min(counts)
+            else:
+                merged["appliances"][appliance] = sum(counts)
+        # Convert sets back to lists
+        merged["rooms"] = list(merged["rooms"])
+        merged["features"] = list(merged["features"])
+        merged["Available amenities and facilities"] = list(merged["Available amenities and facilities"])
+        merged["Additional relevant information"] = list(merged["Additional relevant information"])
+        merged["location_details"] = list(merged["location_details"])
+        return merged
 
-        # Analyze images
-        image_dir = os.path.join(property_path, "images")
-        if os.path.exists(image_dir):
+    def analyze_property(self, property_path):
+        """Analyze a property using all available data sources (images, video, text)."""
+        raw_results = []
+        p = Path(property_path)
+
+        def process_raw(raw):
+            if isinstance(raw, str):
+                cleaned = clean_json_string(raw)
+                try:
+                    return json.loads(cleaned)
+                except json.JSONDecodeError:
+                    return {}
+            return raw if isinstance(raw, dict) else {}
+
+        # Images
+        imgs = list((p / "images").glob("**/*.*")) if (p / "images").exists() else list(p.glob("*.jp*g")) + list(p.glob("*.png"))
+        if imgs:
             try:
-                results["image_analysis"] = self.image_agent.analyze_images(image_dir)
+                raw = self.image_agent.analyze_images(str(p / "images")) if (p / "images").exists() else self.image_agent.analyze_images(property_path)
+                raw_results.append(process_raw(raw))
             except Exception as e:
-                print(f"Error in image analysis: {str(e)}")
-
-        # Analyze videos
-        video_dir = os.path.join(property_path, "videos")
-        if os.path.exists(video_dir):
+                print(f"Error in image analysis: {e}")
+        # Video
+        vid_dir = p / "videos"
+        video_files = []
+        if vid_dir.exists():
+            video_files = [f for f in vid_dir.iterdir() if f.suffix.lower() in ('.mp4', '.avi', '.mov')]
+        else:
+            video_files = [f for f in p.glob('*.mp4')] + [f for f in p.glob('*.mov')] + [f for f in p.glob('*.avi')]
+        if video_files:
             try:
-                for video_file in os.listdir(video_dir):
-                    if video_file.lower().endswith(('.mp4', '.avi', '.mov')):
-                        video_path = os.path.join(video_dir, video_file)
-                        results["video_analysis"] = self.video_agent.analyze_video(video_path)
-                        break  # Analyze only the first video for now
+                raw = self.video_agent.analyze_video(str(video_files[0]))
+                raw_results.append(process_raw(raw))
             except Exception as e:
-                print(f"Error in video analysis: {str(e)}")
-
-        # Analyze text
-        text_dir = os.path.join(property_path, "text")
-        if os.path.exists(text_dir):
+                print(f"Error in video analysis: {e}")
+        # Text
+        txt_dir = p / "text"
+        text_files = []
+        if txt_dir.exists():
+            text_files = [f for f in txt_dir.iterdir() if f.suffix.lower() in ('.txt', '.doc', '.docx', '.pdf')]
+        else:
+            text_files = [f for f in p.glob('*.txt')] + [f for f in p.glob('*.pdf')]
+        if text_files:
             try:
-                for text_file in os.listdir(text_dir):
-                    if text_file.lower().endswith(('.txt', '.doc', '.docx', '.pdf')):
-                        text_path = os.path.join(text_dir, text_file)
-                        results["text_analysis"] = self.text_agent.analyze_text(text_path)
-                        break  # Analyze only the first text file for now
+                raw = self.text_agent.analyze_text(str(text_files[0]))
+                raw_results.append(process_raw(raw))
             except Exception as e:
-                print(f"Error in text analysis: {str(e)}")
-
-        # Combine all analyses
-        try:
-            # Convert results to a string representation
-            results_str = "\n\n".join([
-                f"Image Analysis:\n{results['image_analysis']}" if results['image_analysis'] else "No image analysis available",
-                f"Video Analysis:\n{results['video_analysis']}" if results['video_analysis'] else "No video analysis available",
-                f"Text Analysis:\n{results['text_analysis']}" if results['text_analysis'] else "No text analysis available"
-            ])
-
-            combined_analysis = self.agent.run(
-                f"Based on the following property analyses, provide a comprehensive property profile:\n\n{results_str}"
-            )
-            return combined_analysis.content.strip()
-        except Exception as e:
-            raise Exception(f"Error combining analyses: {str(e)}")
-
-    def answer_query(self, property_path, query):
-        """Answer a specific query about the property"""
-        analysis = self.analyze_property(property_path)
-        try:
-            response = self.agent.run(
-                f"Based on the following property analysis, answer this query: {query}\n\nAnalysis: {analysis}"
-            )
-            return response.content.strip()
-        except Exception as e:
-            raise Exception(f"Error answering query: {str(e)}")
+                print(f"Error in text analysis: {e}")
+        # Merge and generate
+        merged = self.merge_analyses(raw_results)
+        profile = self.agent.run(
+            f"Create a comprehensive property profile based on this merged data: {json.dumps(merged)}"
+        )
+        return profile.content.strip()
 
 if __name__ == "__main__":
     agent = MainAnalysisAgent()
-    property_path = "/path/to/property"  # Replace with actual property path
-    result = agent.analyze_property(property_path)
-    print(result)
+    property_path = "/Users/jayanth/Documents/GitHub/DemonSeller/Flats/flat7"
+    print(agent.analyze_property(property_path))

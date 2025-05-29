@@ -60,6 +60,6 @@ class TextAnalysisAgent:
         
 if __name__ == "__main__":
     agent = TextAnalysisAgent()
-    text_path = "/Users/jayanth/Documents/GitHub/DemonSeller/Flats/flat7"
+    text_path = "/Users/jayanth/Documents/GitHub/DemonSeller/Flats/flat7/flat7.txt"
     result = agent.analyze_text(text_path)
     print(result)
