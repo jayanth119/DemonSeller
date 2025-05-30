@@ -30,6 +30,10 @@ logger.info("Flat Broker System starting up")
 main_agent = MainAnalysisAgent()
 search_agent = PropertySearchAgent()
 vector_store = QdrantVectorStore(
+    qdrant_url="https://886d811f-9d2e-41a5-8043-7354789c11a3.europe-west3-0.gcp.cloud.qdrant.io:6333",
+    qdrant_api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.LCM5Vdz80er3DdIf8Mk6qGIKr3xF9MgyNcKpYup3TWA",
+    collection_name="sample",
+    google_api_key="AIzaSyCjz77h8Q3s3sa9XFx4jWm9qNio23ttxe8"
 )
 
 # Streamlit Config & Styles
@@ -261,7 +265,7 @@ if page == "Register Property":
 
 elif page == "Search Properties":
     st.header("🔍 Search Properties")
-    query = st.text_input("Search Query", placeholder="e.g., 2BHK with AC and parking")
+    query = st.text_input("Search Query", placeholder="e.g., I want a 2BHK apartment with 2 ACs, a sofa, a balcony, under 25000 in Sector 35 with WiFi and inverter")
     
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -275,16 +279,36 @@ elif page == "Search Properties":
         else:
             with st.spinner("Searching properties..."):
                 try:
-                    results = search_agent.search(query.strip(), n_results=max_results)
+                    # Use the enhanced search with query parsing
+                    logger.info(f"Searching for query: {query}")
+                    
+                    # Parse the query to extract filters
+                    parsed_result = search_agent.parse_query(query.strip())
+                    
+                    # Display parsed filters for debugging/transparency
+                    with st.expander("🔍 Parsed Search Filters", expanded=False):
+                        st.json(parsed_result)
+                    
+                    # Search using filters
+                    results = vector_store.search_by_filters(parsed_result)
+                    logger.info(f"Search returned {len(results)} results")
+                    
+                    # Limit results if needed
+                    if len(results) > max_results:
+                        results = results[:max_results]
                     
                     if results:
                         st.subheader(f"🏠 Found {len(results)} matching properties")
                         
                         for i, result in enumerate(results, 1):
-                            with st.expander(f"Property {i}: {result.get('id', 'Unknown ID')} (Score: {result.get('distance', 0):.3f})"):
+                            # Handle result format from filter search
+                            property_id = result.get('id') or result.get('property_id', f'Unknown_{i}')
+                            score = result.get('distance', result.get('score', 0))
+                            
+                            with st.expander(f"Property {i}: {property_id} (Score: {score:.3f})"):
                                 
-                                # Get detailed property data
-                                property_data = vector_store.get_property(result["id"])
+                                # Get detailed property data from the result itself
+                                property_data = result
                                 
                                 if property_data and property_data.get("text_description"):
                                     try:
@@ -292,37 +316,53 @@ elif page == "Search Properties":
                                         
                                         col_a, col_b = st.columns(2)
                                         with col_a:
-                                            st.write(f"**Property ID:** {result.get('id')}")
-                                            st.write(f"**Match Score:** {result.get('distance', 0):.3f}")
+                                            st.write(f"**Property ID:** {property_id}")
+                                            st.write(f"**Match Score:** {score:.3f}")
                                             if 'created_at' in property_data:
                                                 st.write(f"**Created:** {property_data['created_at']}")
                                         
                                         with col_b:
                                             # Check if property files exist
-                                            prop_path = os.path.join(os.path.dirname(__file__), "properties", result.get('id', ''))
+                                            prop_path = os.path.join(os.path.dirname(__file__), "properties", property_id)
                                             if os.path.exists(prop_path):
                                                 img_count = len(os.listdir(os.path.join(prop_path, "images"))) if os.path.exists(os.path.join(prop_path, "images")) else 0
                                                 vid_count = len(os.listdir(os.path.join(prop_path, "videos"))) if os.path.exists(os.path.join(prop_path, "videos")) else 0
                                                 st.write(f"**Images:** {img_count}")
                                                 st.write(f"**Videos:** {vid_count}")
                                         
-                                        st.subheader("Property Details")
+                                        # Show original description if available
+                                        if 'description' in property_data:
+                                            st.subheader("Original Description")
+                                            st.text_area("", value=property_data['description'], height=100, disabled=True, key=f"desc_{i}")
+                                        
+                                        st.subheader("Property Analysis")
                                         st.json(profile_data)
+                                        
+                                        # Show matching criteria if available
+                                        if 'matching_criteria' in result:
+                                            st.subheader("Matching Criteria")
+                                            st.json(result['matching_criteria'])
                                         
                                     except Exception as e:
                                         st.error(f"Error parsing property data: {e}")
                                         st.write("**Raw Data:**")
-                                        st.text(property_data.get("text_description", "No data"))
+                                        st.json(property_data)
                                 else:
                                     st.warning("No detailed property data available.")
-                                    st.write(f"**Property ID:** {result.get('id')}")
-                                    st.write(f"**Score:** {result.get('distance', 0):.3f}")
+                                    st.write(f"**Property ID:** {property_id}")
+                                    st.write(f"**Score:** {score:.3f}")
+                                    # Show whatever data is available in the result
+                                    st.subheader("Available Data")
+                                    st.json(result)
                     else:
                         st.info("No matching properties found. Try adjusting your search terms.")
                         
                 except Exception as e:
                     logger.error(f"Search error: {e}")
                     st.error(f"Search failed: {e}")
+                    # Show the error details for debugging
+                    with st.expander("Error Details"):
+                        st.code(str(e))
 
 # Cleanup section in sidebar
 with st.sidebar:
@@ -341,3 +381,10 @@ with st.sidebar:
     if os.path.exists(log_dir):
         log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
         st.write(f"**Log Files:** {len(log_files)}")
+    
+    st.markdown("---")
+    st.subheader("💡 Search Tips")
+    st.write("Use natural language like:")
+    st.write("• 'I want a 2BHK with AC under 25000'")
+    st.write("• 'Apartment with balcony and WiFi'")
+    st.write("• 'House in Sector 35 with parking'")

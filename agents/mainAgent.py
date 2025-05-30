@@ -21,6 +21,7 @@ def clean_json_string(s: str) -> str:
     s = s.replace("```", "")
     return s.strip()
 
+
 class MainAnalysisAgent:
     def __init__(self):
         self.agent = Agent(
@@ -61,9 +62,11 @@ class MainAnalysisAgent:
             for r in src.get("rooms", []): merged["rooms"].add(r)
             # features
             for f in src.get("features", []): merged["features"].add(f)
-            # property details
-            for key, val in src.get("Property details", {}).items():
-                merged["Property details"].setdefault(key, val)
+            # property details - only if dict
+            property_details = src.get("Property details", {})
+            if isinstance(property_details, dict):
+                for key, val in property_details.items():
+                    merged["Property details"].setdefault(key, val)
             # amenities
             for a in src.get("Available amenities and facilities", []): merged["Available amenities and facilities"].add(a)
             # rules
@@ -108,7 +111,8 @@ class MainAnalysisAgent:
                 cleaned = clean_json_string(raw)
                 try:
                     return json.loads(cleaned)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    print(f"JSON decode error: {e}\nRaw content:\n{cleaned}")
                     return {}
             return raw if isinstance(raw, dict) else {}
 
@@ -152,6 +156,7 @@ class MainAnalysisAgent:
             f"Create a comprehensive property profile based on this merged data: {json.dumps(merged)}"
         )
         return profile.content.strip()
+
 
 if __name__ == "__main__":
     agent = MainAnalysisAgent()
