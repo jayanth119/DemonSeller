@@ -165,67 +165,76 @@ if __name__ == "__main__":
 
     # Example property item
     property_item = {
-  "property_name": "Luxury 1BHK Apartment",
-  "property_location": "V Block, DLF Phase 3, Sector 24, Gurgaon",
-  "property_summary": "A luxury 1BHK apartment located in V Block, DLF Phase 3, Sector 24, Gurgaon, available for ₹38,000 per month (including maintenance).",
+  "property_name": "Modern 1RK Apartment",
+  "property_location": "Sector 57",
+  "property_summary": "This is a well-maintained, fully furnished 1RK apartment located in Sector 57. The estimated price is ₹20,000.",
   "rooms": [
+    "Room",
     "Living Room",
-    "Hall",
+    "Kitchen",
     "Bedroom",
-    "Bathroom",
-    "Kitchen"
+    "Bathroom"
   ],
   "appliances": {
-    "fridge": 1,
-    "microwave": 1,
-    "oven": 1,
-    "sofa": 1,
-    "bed": 1,
-    "tv": 2,
+    "fridge": 2,
+    "microwave": 2,
+    "oven": 2,
+    "stove": 2,
+    "dishwasher": 1,
+    "bed": 4,
+    "sofa": 2,
+    "tv": 3,
     "washing machine": 1,
-    "table": 3,
-    "chairs": 9,
-    "air conditioner": 3,
-    "stove": 1,
-    "side table": 1,
-    "study table": 1,
-    "smart led": 1,
-    "almirah": 1,
-    "RO": 1,
-    "induction": 1,
-    "centre table": 1,
-    "geyser": 1,
-    "cctv camera": 1
+    "dining table": 1,
+    "chairs": 8,
+    "coffee table": 1,
+    "air conditioner": 2,
+    "table": 1
   },
-  "key_features": "Features include a balcony, WiFi, lift access, 24/7 caretaker, gated society, modern kitchen, fingerprint entrance lock, inverter power backup, modern appliances, park-facing views, fully ventilated rooms, large windows, and hardwood floors.",
-  "amenities": "In-unit amenities include WiFi, inverter power backup, RO water purifier. On-site amenities feature a lift, 24/7 caretaker, and a gated society.",
-  "layout_and_condition": "The apartment features an open-plan living room and kitchen area, with bedrooms located off a hallway. The bathroom is accessible from the hallway. The property is well-maintained with good utilization of space and ample natural light in the living areas.",
-  "location_insights": "Conveniently located 5 minutes drive from Cyber City and Ambience Mall, with proximity to rapid metro station (10 mins walking), nearby gym, hospital, grocery shops, restaurants and market (5 mins walking), and park facing property.",
-  "rules_and_restrictions": "Not specified.",
-  "contact_info": {
-    "agency": "Jain properties",
-    "brokerage": "21 Days Brokerage"
-  },
-  "additional_info": "Visits and booking are already underway for this highly anticipated property in a gated locality.",
-  "rent": "38000"
+  "key_features": [
+    "Modern kitchen",
+    "RO water system",
+    "Balcony",
+    "City view",
+    "Hardwood floors",
+    "Walk-in closet",
+    "Fully furnished",
+    "Power backup",
+    "WiFi"
+  ],
+  "amenities": [
+    "RO water system",
+    "Power backup",
+    "Washing machine",
+    "24hrs High Advance Security",
+    "Fully furnished",
+    "WiFi"
+  ],
+  "layout_and_condition": "The apartment features an open-plan living area that flows seamlessly into the modern kitchen. Bedrooms are separate from the living area, ensuring privacy. The bathroom is conveniently accessible from the hallway. The property is well-maintained and offers good use of space with ample natural light in the living areas and bedrooms.",
+  "location_insights": "Location details are not available.",
+  "rules_and_restrictions": "No specific rules or restrictions are mentioned.",
+  "contact_info": "Jain properties",
+  "additional_info": "21 Days Brokerage applicable.",
+  "rent": "20000"
 }
+
 
     added_ids = store.add_documents([property_item])
     print("Added document IDs:", added_ids)
 
-    # Example search
-    query = "Luxury apartment under 25000"
-    matches = store.search_by_text(query, k=3)
-    for match in matches:
-        print("Match:", match)
-        agent = PropertySearchAgent()
+    # # Example search
+    # query = "Luxury apartment under 25000"
+    # matches = store.search_by_text(query, k=3)
+    # for match in matches:
+    #     print("Match:", match)
+    #     agent = PropertySearchAgent()
 
-    query = (
-        "I want a 2BHK apartment with 2 ACs, a sofa, a balcony, "
-        "under 25000 in Sector 35 with WiFi and inverter"
-    )
+    # query = (
+    #     "I want a 2BHK apartment with 2 ACs, a sofa, a balcony, "
+    #     "under 25000 in Sector 35 with WiFi and inverter"
+    # )
 
-    parsed_result = agent.search(query)
-    print("Parsed filter JSON:")
-    print(json.dumps(parsed_result, indent=2))
+    # parsed_result = agent.search(query)
+    # print("Parsed filter JSON:")
+    # print(json.dumps(parsed_result, indent=2))
     

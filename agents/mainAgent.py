@@ -160,5 +160,5 @@ class MainAnalysisAgent:
 
 if __name__ == "__main__":
     agent = MainAnalysisAgent()
-    property_path = "/Users/jayanth/Documents/GitHub/DemonSeller/Flats/flat7"
+    property_path = "/Users/jayanth/Documents/GitHub/DemonSeller/Flats/flat11"
     print(agent.analyze_property(property_path))
