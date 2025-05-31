@@ -3,13 +3,17 @@ import json
 import re
 import tempfile
 import shutil
+import uuid
 from datetime import datetime
 import logging
+import sys
+from pathlib import Path
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
 from agents.mainAgent import MainAnalysisAgent
 from agents.searchAgent import PropertySearchAgent
-from models.vectorStore import QdrantVectorStore
+from models.vectorStore import QdrantVectorStoreClient
 
 # Logging Setup
 log_dir = os.path.join(os.path.dirname(__file__), "logs")
@@ -28,13 +32,9 @@ logger.info("Flat Broker System starting up")
 
 # Initialize Agents & Vector Store
 main_agent = MainAnalysisAgent()
-search_agent = PropertySearchAgent()
-vector_store = QdrantVectorStore(
-    qdrant_url="https://886d811f-9d2e-41a5-8043-7354789c11a3.europe-west3-0.gcp.cloud.qdrant.io:6333",
-    qdrant_api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.LCM5Vdz80er3DdIf8Mk6qGIKr3xF9MgyNcKpYup3TWA",
-    collection_name="sample",
-    google_api_key="AIzaSyCjz77h8Q3s3sa9XFx4jWm9qNio23ttxe8"
+vector_store = QdrantVectorStoreClient(
 )
+search_agent = PropertySearchAgent(vector_store)
 
 # Streamlit Config & Styles
 st.set_page_config(page_title="Flat Broker System", page_icon="🏠", layout="wide")
@@ -53,8 +53,14 @@ if 'analysis_result' not in st.session_state:
     st.session_state.analysis_result = None
 if 'temp_files' not in st.session_state:
     st.session_state.temp_files = None
+if 'property_id' not in st.session_state:
+    st.session_state.property_id = None
 
 # Helpers
+def generate_unique_property_id():
+    """Generate a unique property ID using UUID"""
+    return str(uuid.uuid4())
+
 def save_uploaded_files(uploaded_files, dest_dir):
     """Save uploaded files to destination directory"""
     paths = []
@@ -101,6 +107,53 @@ def copy_files_safely(src_dir, dest_dir):
         logger.error(f"Error copying files from {src_dir} to {dest_dir}: {e}")
         return False
 
+def get_property_folder_info(property_id):
+    """Get folder information for a specific property ID"""
+    properties_dir = os.path.join(os.path.dirname(__file__), "properties")
+    property_path = os.path.join(properties_dir, property_id)
+    
+    folder_info = {
+        'property_id': property_id,
+        'exists': False,
+        'images': [],
+        'videos': [],
+        'text_files': [],
+        'profile_data': None
+    }
+    
+    if os.path.exists(property_path):
+        folder_info['exists'] = True
+        
+        # Get images
+        img_dir = os.path.join(property_path, "images")
+        if os.path.exists(img_dir):
+            folder_info['images'] = [f for f in os.listdir(img_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+        
+        # Get videos
+        vid_dir = os.path.join(property_path, "videos")
+        if os.path.exists(vid_dir):
+            folder_info['videos'] = [f for f in os.listdir(vid_dir) if f.lower().endswith(('.mp4', '.mov', '.avi'))]
+        
+        # Get text files
+        text_dir = os.path.join(property_path, "text")
+        if os.path.exists(text_dir):
+            folder_info['text_files'] = [f for f in os.listdir(text_dir)]
+            
+            # Load profile data if exists
+            profile_file = os.path.join(text_dir, "profile.json")
+            if os.path.exists(profile_file):
+                try:
+                    with open(profile_file, "r", encoding='utf-8') as f:
+                        folder_info['profile_data'] = json.load(f)
+                except Exception as e:
+                    logger.error(f"Failed to load profile data for {property_id}: {e}")
+        
+        logger.info(f"Retrieved folder info for property {property_id}")
+    else:
+        logger.warning(f"Property folder not found: {property_path}")
+    
+    return folder_info
+
 # Main UI
 st.title("🏠 Flat Broker System")
 page = st.sidebar.radio("Navigation", ["Register Property", "Search Properties"])
@@ -124,6 +177,11 @@ if page == "Register Property":
             else:
                 with st.spinner("Analyzing property..."):
                     try:
+                        # Generate unique property ID at the start
+                        property_id = generate_unique_property_id()
+                        st.session_state.property_id = property_id
+                        logger.info(f"Generated property ID: {property_id}")
+                        
                         # Create temporary directory for processing
                         temp_dir = tempfile.mkdtemp()
                         logger.info(f"Created temp directory: {temp_dir}")
@@ -153,6 +211,10 @@ if page == "Register Property":
                         raw_profile = main_agent.analyze_property(prop_dir)
                         profile = clean_and_parse(raw_profile)
                         
+                        # Add property ID to profile
+                        profile['property_id'] = property_id
+                        profile['created_at'] = datetime.now().isoformat()
+                        
                         # Store results in session state
                         st.session_state.analysis_result = profile
                         st.session_state.temp_files = {
@@ -164,28 +226,30 @@ if page == "Register Property":
                         }
                         
                         logger.info("Analysis completed successfully")
-                        st.success("Property analysis completed!")
+                        st.success(f"Property analysis completed! Property ID: {property_id}")
                         
                     except Exception as e:
                         logger.error(f"Error during analysis: {e}")
                         st.error(f"Error during analysis: {e}")
 
     # Display analysis results
-    if st.session_state.analysis_result:
+    if st.session_state.analysis_result and st.session_state.property_id:
         st.subheader("📊 Analysis Result")
+        st.write(f"**Property ID:** {st.session_state.property_id}")
         st.json(st.session_state.analysis_result)
         
         with col2:
             if st.button("✅ Register Property"):
                 try:
                     with st.spinner("Registering property..."):
-                        # Create storage directory
+                        property_id = st.session_state.property_id
+                        
+                        # Create storage directory using property ID
                         storage = os.path.join(os.path.dirname(__file__), "properties")
                         os.makedirs(storage, exist_ok=True)
                         
-                        # Generate unique property ID
-                        pid = datetime.now().strftime("%Y%m%d%H%M%S")
-                        dest_dir = os.path.join(storage, pid)
+                        # Use property ID as folder name
+                        dest_dir = os.path.join(storage, property_id)
                         
                         # Create destination structure
                         dest_img_dir = os.path.join(dest_dir, "images")
@@ -209,13 +273,13 @@ if page == "Register Property":
                         else:
                             # Prepare document for vector store
                             profile_data = st.session_state.analysis_result
-                            profile_data['id'] = pid
-                            profile_data['created_at'] = datetime.now().isoformat()
+                            profile_data['property_id'] = property_id
                             profile_data['description'] = description
                             
-                            # Add to vector store
+                            # Add to vector store with property_id
                             document = {
-                                "id": pid,
+                                "id": property_id,  # Use property_id as document ID
+                                "property_id": property_id,
                                 "text_description": json.dumps(profile_data, ensure_ascii=False),
                                 "description": description,
                                 "created_at": datetime.now().isoformat()
@@ -226,17 +290,17 @@ if page == "Register Property":
                             # Force flush to ensure immediate searchability
                             try:
                                 vector_store.qdrant_client.flush(collection_name="sample", wait=True)
-                                logger.info(f"Flushed Qdrant after adding property {pid}")
+                                logger.info(f"Flushed Qdrant after adding property {property_id}")
                             except Exception as e:
                                 logger.warning(f"Flush operation failed: {e}")
                             
-                            # Save JSON profile to file system as well
+                            # Save JSON profile to file system
                             profile_file = os.path.join(dest_text_dir, "profile.json")
                             with open(profile_file, "w", encoding='utf-8') as f:
                                 json.dump(profile_data, f, indent=2, ensure_ascii=False)
                             
-                            logger.info(f"Property {pid} registered successfully")
-                            st.success(f"✅ Property registered successfully! ID: {pid}")
+                            logger.info(f"Property {property_id} registered successfully")
+                            st.success(f"✅ Property registered successfully! ID: {property_id}")
                             
                             # Clean up temp files
                             try:
@@ -248,12 +312,13 @@ if page == "Register Property":
                             # Reset session state
                             st.session_state.analysis_result = None
                             st.session_state.temp_files = None
+                            st.session_state.property_id = None
                             
                             # Show property summary
                             st.subheader("📋 Property Summary")
                             col_a, col_b = st.columns(2)
                             with col_a:
-                                st.write(f"**Property ID:** {pid}")
+                                st.write(f"**Property ID:** {property_id}")
                                 st.write(f"**Created:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                             with col_b:
                                 st.write(f"**Images:** {len(os.listdir(dest_img_dir)) if os.path.exists(dest_img_dir) else 0}")
@@ -265,7 +330,7 @@ if page == "Register Property":
 
 elif page == "Search Properties":
     st.header("🔍 Search Properties")
-    query = st.text_input("Search Query", placeholder="e.g., I want a 2BHK apartment with 2 ACs, a sofa, a balcony, under 25000 in Sector 35 with WiFi and inverter")
+    query = st.text_input("Search Query", placeholder="e.g., Flats contains of no ac, not having elevator and Newly renovated")
     
     col1, col2 = st.columns([3, 1])
     with col1:
@@ -279,81 +344,84 @@ elif page == "Search Properties":
         else:
             with st.spinner("Searching properties..."):
                 try:
-                    # Use the enhanced search with query parsing
                     logger.info(f"Searching for query: {query}")
                     
-                    # Parse the query to extract filters
-                    parsed_result = search_agent.parse_query(query.strip())
-                    
-                    # Display parsed filters for debugging/transparency
-                    with st.expander("🔍 Parsed Search Filters", expanded=False):
-                        st.json(parsed_result)
-                    
-                    # Search using filters
-                    results = vector_store.search_by_filters(parsed_result)
+                    # Use search agent to get results with property IDs
+                    results = search_agent.search(query.strip(), k=max_results)
                     logger.info(f"Search returned {len(results)} results")
-                    
-                    # Limit results if needed
-                    if len(results) > max_results:
-                        results = results[:max_results]
                     
                     if results:
                         st.subheader(f"🏠 Found {len(results)} matching properties")
                         
                         for i, result in enumerate(results, 1):
-                            # Handle result format from filter search
-                            property_id = result.get('id') or result.get('property_id', f'Unknown_{i}')
-                            score = result.get('distance', result.get('score', 0))
+                            property_id = result.get('property_id')
+                            score = result.get('score', 0)
+                            matched_features = result.get('matched_features', [])
+                            missing_features = result.get('missing_features', [])
+                            feature_match_percentage = result.get('feature_match_percentage', 0)
                             
-                            with st.expander(f"Property {i}: {property_id} (Score: {score:.3f})"):
+                            with st.expander(f"Property {i}: {property_id} (Score: {score:.3f}, Match: {feature_match_percentage}%)"):
                                 
-                                # Get detailed property data from the result itself
-                                property_data = result
+                                # Get folder information for this property ID
+                                folder_info = get_property_folder_info(property_id)
                                 
-                                if property_data and property_data.get("text_description"):
-                                    try:
-                                        profile_data = clean_and_parse(property_data["text_description"])
-                                        
-                                        col_a, col_b = st.columns(2)
-                                        with col_a:
-                                            st.write(f"**Property ID:** {property_id}")
-                                            st.write(f"**Match Score:** {score:.3f}")
-                                            if 'created_at' in property_data:
-                                                st.write(f"**Created:** {property_data['created_at']}")
-                                        
-                                        with col_b:
-                                            # Check if property files exist
-                                            prop_path = os.path.join(os.path.dirname(__file__), "properties", property_id)
-                                            if os.path.exists(prop_path):
-                                                img_count = len(os.listdir(os.path.join(prop_path, "images"))) if os.path.exists(os.path.join(prop_path, "images")) else 0
-                                                vid_count = len(os.listdir(os.path.join(prop_path, "videos"))) if os.path.exists(os.path.join(prop_path, "videos")) else 0
-                                                st.write(f"**Images:** {img_count}")
-                                                st.write(f"**Videos:** {vid_count}")
-                                        
-                                        # Show original description if available
-                                        if 'description' in property_data:
-                                            st.subheader("Original Description")
-                                            st.text_area("", value=property_data['description'], height=100, disabled=True, key=f"desc_{i}")
-                                        
-                                        st.subheader("Property Analysis")
-                                        st.json(profile_data)
-                                        
-                                        # Show matching criteria if available
-                                        if 'matching_criteria' in result:
-                                            st.subheader("Matching Criteria")
-                                            st.json(result['matching_criteria'])
-                                        
-                                    except Exception as e:
-                                        st.error(f"Error parsing property data: {e}")
-                                        st.write("**Raw Data:**")
-                                        st.json(property_data)
-                                else:
-                                    st.warning("No detailed property data available.")
+                                col_a, col_b = st.columns(2)
+                                with col_a:
                                     st.write(f"**Property ID:** {property_id}")
-                                    st.write(f"**Score:** {score:.3f}")
-                                    # Show whatever data is available in the result
-                                    st.subheader("Available Data")
-                                    st.json(result)
+                                    st.write(f"**Match Score:** {score:.3f}")
+                                    st.write(f"**Feature Match:** {feature_match_percentage}%")
+                                
+                                with col_b:
+                                    st.write(f"**Images:** {len(folder_info['images'])}")
+                                    st.write(f"**Videos:** {len(folder_info['videos'])}")
+                                    st.write(f"**Folder Exists:** {'✅' if folder_info['exists'] else '❌'}")
+                                
+                                # Show matched and missing features
+                                if matched_features:
+                                    st.subheader("✅ Matched Features")
+                                    st.success(", ".join(matched_features))
+                                
+                                if missing_features:
+                                    st.subheader("❌ Missing Features")
+                                    st.warning(", ".join(missing_features))
+                                
+                                # Show folder contents
+                                if folder_info['exists']:
+                                    st.subheader("📁 Folder Contents")
+                                    
+                                    col_c, col_d, col_e = st.columns(3)
+                                    with col_c:
+                                        if folder_info['images']:
+                                            st.write("**Images:**")
+                                            for img in folder_info['images']:
+                                                st.write(f"• {img}")
+                                    
+                                    with col_d:
+                                        if folder_info['videos']:
+                                            st.write("**Videos:**")
+                                            for vid in folder_info['videos']:
+                                                st.write(f"• {vid}")
+                                    
+                                    with col_e:
+                                        if folder_info['text_files']:
+                                            st.write("**Text Files:**")
+                                            for txt in folder_info['text_files']:
+                                                st.write(f"• {txt}")
+                                
+                                # Show property profile data if available
+                                if folder_info['profile_data']:
+                                    st.subheader("📊 Property Analysis")
+                                    
+                                    # Show original description if available
+                                    if 'description' in folder_info['profile_data']:
+                                        st.write("**Original Description:**")
+                                        st.text_area("", value=folder_info['profile_data']['description'], height=100, disabled=True, key=f"desc_{i}_{property_id}")
+                                    
+                                    # Show analysis data
+                                    with st.expander("View Full Analysis Data"):
+                                        st.json(folder_info['profile_data'])
+                                else:
+                                    st.warning("No detailed property analysis data found in folder.")
                     else:
                         st.info("No matching properties found. Try adjusting your search terms.")
                         
@@ -385,6 +453,7 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("💡 Search Tips")
     st.write("Use natural language like:")
-    st.write("• 'I want a 2BHK with AC under 25000'")
-    st.write("• 'Apartment with balcony and WiFi'")
-    st.write("• 'House in Sector 35 with parking'")
+    st.write("• 'Flats contains of no ac, not having elevator'")
+    st.write("• 'Newly renovated apartment with balcony'")
+    st.write("• 'House with parking and WiFi'")
+    st.write("• 'No AC and no elevator properties'")
