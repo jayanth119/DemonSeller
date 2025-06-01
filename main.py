@@ -8,6 +8,7 @@ from datetime import datetime
 import logging
 import sys
 from pathlib import Path
+import base64
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
@@ -33,6 +34,7 @@ logger.info("Flat Broker System starting up")
 # Initialize Agents & Vector Store
 main_agent = MainAnalysisAgent()
 vector_store = QdrantVectorStoreClient(
+
 )
 search_agent = PropertySearchAgent(vector_store)
 
@@ -42,7 +44,23 @@ st.markdown(
     """
     <style>
       .stButton>button { width: 100%; }
-      .property-card { padding: 1rem; border-radius: 0.5rem; border: 1px solid #ddd; margin-bottom: 1rem; }
+      .property-card { 
+        padding: 1rem; 
+        border-radius: 0.5rem; 
+        border: 1px solid #ddd; 
+        margin-bottom: 1rem; 
+        background-color: #f9f9f9;
+      }
+      .media-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 10px 0;
+      }
+      .media-item {
+        max-width: 200px;
+        max-height: 150px;
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -118,21 +136,27 @@ def get_property_folder_info(property_id):
         'images': [],
         'videos': [],
         'text_files': [],
-        'profile_data': None
+        'profile_data': None,
+        'image_paths': [],
+        'video_paths': []
     }
     
     if os.path.exists(property_path):
         folder_info['exists'] = True
         
-        # Get images
+        # Get images with full paths
         img_dir = os.path.join(property_path, "images")
         if os.path.exists(img_dir):
-            folder_info['images'] = [f for f in os.listdir(img_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+            image_files = [f for f in os.listdir(img_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp'))]
+            folder_info['images'] = image_files
+            folder_info['image_paths'] = [os.path.join(img_dir, f) for f in image_files]
         
-        # Get videos
+        # Get videos with full paths
         vid_dir = os.path.join(property_path, "videos")
         if os.path.exists(vid_dir):
-            folder_info['videos'] = [f for f in os.listdir(vid_dir) if f.lower().endswith(('.mp4', '.mov', '.avi'))]
+            video_files = [f for f in os.listdir(vid_dir) if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv', '.webm'))]
+            folder_info['videos'] = video_files
+            folder_info['video_paths'] = [os.path.join(vid_dir, f) for f in video_files]
         
         # Get text files
         text_dir = os.path.join(property_path, "text")
@@ -154,21 +178,113 @@ def get_property_folder_info(property_id):
     
     return folder_info
 
+def display_images(image_paths, property_id):
+    """Display images in a grid layout"""
+    if not image_paths:
+        st.write("No images available")
+        return
+    
+    # Display images in columns
+    cols_per_row = 3
+    rows = [image_paths[i:i + cols_per_row] for i in range(0, len(image_paths), cols_per_row)]
+    
+    for row in rows:
+        cols = st.columns(len(row))
+        for idx, (col, img_path) in enumerate(zip(cols, row)):
+            with col:
+                try:
+                    if os.path.exists(img_path):
+                        st.image(img_path, caption=os.path.basename(img_path), use_container_width=True)
+                    else:
+                        st.error(f"Image not found: {os.path.basename(img_path)}")
+                except Exception as e:
+                    st.error(f"Error loading image {os.path.basename(img_path)}: {str(e)}")
+
+def display_videos(video_paths, property_id):
+    """Display videos"""
+    if not video_paths:
+        st.write("No videos available")
+        return
+    
+    for video_path in video_paths:
+        try:
+            if os.path.exists(video_path):
+                st.video(video_path)
+                st.caption(f"Video: {os.path.basename(video_path)}")
+            else:
+                st.error(f"Video not found: {os.path.basename(video_path)}")
+        except Exception as e:
+            st.error(f"Error loading video {os.path.basename(video_path)}: {str(e)}")
+
+def safe_search_properties(query, max_results=5):
+    """Safely search properties with error handling"""
+    try:
+        logger.info(f"Executing search query: '{query}' with max_results: {max_results}")
+        
+        # Perform the search
+        results = search_agent.search(query.strip(), k=max_results)
+        
+        if not results:
+            logger.info("No results returned from search agent")
+            return []
+        
+        logger.info(f"Search agent returned {len(results)} results")
+        
+        # Process and validate results
+        processed_results = []
+        for idx, result in enumerate(results):
+            try:
+                # Ensure result has required fields
+                property_id = result.get('property_id', f'unknown_{idx}')
+                score = float(result.get('score', 0.0))
+                
+                # Get additional result data
+                matched_features = result.get('matched_features', [])
+                missing_features = result.get('missing_features', [])
+                feature_match_percentage = result.get('feature_match_percentage', 0)
+                
+                # Validate property_id exists in filesystem
+                folder_info = get_property_folder_info(property_id)
+                
+                processed_result = {
+                    'property_id': property_id,
+                    'score': score,
+                    'matched_features': matched_features if isinstance(matched_features, list) else [],
+                    'missing_features': missing_features if isinstance(missing_features, list) else [],
+                    'feature_match_percentage': feature_match_percentage,
+                    'folder_exists': folder_info['exists'],
+                    'folder_info': folder_info
+                }
+                
+                processed_results.append(processed_result)
+                logger.info(f"Processed result {idx + 1}: {property_id} (score: {score:.3f})")
+                
+            except Exception as e:
+                logger.error(f"Error processing result {idx}: {e}")
+                continue
+        
+        return processed_results
+        
+    except Exception as e:
+        logger.error(f"Error in safe_search_properties: {e}")
+        st.error(f"Search error: {str(e)}")
+        return []
+
 # Main UI
 st.title("🏠 Flat Broker System")
 page = st.sidebar.radio("Navigation", ["Register Property", "Search Properties"])
 
 if page == "Register Property":
     st.header("📝 Register New Property")
-    description = st.text_area("Property Description", height=200)
-    images = st.file_uploader("Upload Images", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
-    video = st.file_uploader("Upload Video", type=["mp4", "mov", "avi"], accept_multiple_files=False)
+    description = st.text_area("Property Description", height=200, placeholder="Enter detailed property description...")
+    images = st.file_uploader("Upload Images", type=["jpg", "png", "jpeg", "gif", "bmp"], accept_multiple_files=True)
+    video = st.file_uploader("Upload Video", type=["mp4", "mov", "avi", "mkv", "webm"], accept_multiple_files=False)
 
     col1, col2 = st.columns(2)
     
     with col1:
         if st.button("Analyze Property"):
-            if not description:
+            if not description.strip():
                 st.error("Please provide a property description.")
             elif not images:
                 st.error("Please upload at least one image.")
@@ -330,130 +446,243 @@ if page == "Register Property":
 
 elif page == "Search Properties":
     st.header("🔍 Search Properties")
-    query = st.text_input("Search Query", placeholder="e.g., Flats contains of no ac, not having elevator and Newly renovated")
+    
+    # Search input section
+    query = st.text_input("Search Query", 
+                         placeholder="e.g., Flats contains of no ac, not having elevator and Newly renovated",
+                         help="Use natural language to describe what you're looking for")
     
     col1, col2 = st.columns([3, 1])
     with col1:
-        search_button = st.button("🔍 Search Properties")
+        search_button = st.button("🔍 Search Properties", type="primary")
     with col2:
         max_results = st.selectbox("Max Results", [5, 10, 15, 20], index=0)
     
+    # Advanced search options
+    with st.expander("🔧 Advanced Search Options"):
+        include_images = st.checkbox("Display Images", value=True)
+        include_videos = st.checkbox("Display Videos", value=True)
+        show_full_analysis = st.checkbox("Show Full Analysis Data", value=False)
+        show_file_details = st.checkbox("Show Detailed File Information", value=False)
+    
     if search_button:
         if not query.strip():
-            st.warning("Please enter a search query.")
+            st.warning("⚠️ Please enter a search query.")
         else:
-            with st.spinner("Searching properties..."):
+            with st.spinner("🔍 Searching properties..."):
                 try:
-                    logger.info(f"Searching for query: {query}")
+                    logger.info(f"Starting search for query: '{query}' with max_results: {max_results}")
                     
-                    # Use search agent to get results with property IDs
-                    results = search_agent.search(query.strip(), k=max_results)
-                    logger.info(f"Search returned {len(results)} results")
+                    # Perform safe search
+                    results = safe_search_properties(query, max_results)
                     
                     if results:
-                        st.subheader(f"🏠 Found {len(results)} matching properties")
+                        st.success(f"🏠 Found {len(results)} matching properties")
                         
+                        # Display results
                         for i, result in enumerate(results, 1):
-                            property_id = result.get('property_id')
-                            score = result.get('score', 0)
-                            matched_features = result.get('matched_features', [])
-                            missing_features = result.get('missing_features', [])
-                            feature_match_percentage = result.get('feature_match_percentage', 0)
+                            property_id = result['property_id']
+                            score = result['score']
+                            matched_features = result['matched_features']
+                            missing_features = result['missing_features']
+                            feature_match_percentage = result['feature_match_percentage']
+                            folder_info = result['folder_info']
                             
-                            with st.expander(f"Property {i}: {property_id} (Score: {score:.3f}, Match: {feature_match_percentage}%)"):
+                            # Create expandable section for each property
+                            with st.expander(f"🏠 Property {i}: {property_id[:8]}... (Score: {score:.3f}, Match: {feature_match_percentage}%)", expanded=True):
                                 
-                                # Get folder information for this property ID
-                                folder_info = get_property_folder_info(property_id)
-                                
-                                col_a, col_b = st.columns(2)
+                                # Property info header
+                                col_a, col_b, col_c = st.columns(3)
                                 with col_a:
-                                    st.write(f"**Property ID:** {property_id}")
-                                    st.write(f"**Match Score:** {score:.3f}")
-                                    st.write(f"**Feature Match:** {feature_match_percentage}%")
-                                
+                                    st.metric("Property ID", property_id[:8] + "...")
+                                    st.write(f"**Full ID:** `{property_id}`")
                                 with col_b:
-                                    st.write(f"**Images:** {len(folder_info['images'])}")
-                                    st.write(f"**Videos:** {len(folder_info['videos'])}")
-                                    st.write(f"**Folder Exists:** {'✅' if folder_info['exists'] else '❌'}")
+                                    st.metric("Match Score", f"{score:.3f}")
+                                    st.metric("Feature Match", f"{feature_match_percentage}%")
+                                with col_c:
+                                    st.metric("Images", len(folder_info['images']))
+                                    st.metric("Videos", len(folder_info['videos']))
                                 
-                                # Show matched and missing features
-                                if matched_features:
-                                    st.subheader("✅ Matched Features")
-                                    st.success(", ".join(matched_features))
+                                # Status indicators
+                                status_col1, status_col2 = st.columns(2)
+                                with status_col1:
+                                    if folder_info['exists']:
+                                        st.success("✅ Property folder exists")
+                                    else:
+                                        st.error("❌ Property folder not found")
                                 
-                                if missing_features:
-                                    st.subheader("❌ Missing Features")
-                                    st.warning(", ".join(missing_features))
+                                with status_col2:
+                                    if folder_info['profile_data']:
+                                        st.success("✅ Analysis data available")
+                                    else:
+                                        st.warning("⚠️ No analysis data found")
                                 
-                                # Show folder contents
+                                # Feature matching section
+                                if matched_features or missing_features:
+                                    st.subheader("🎯 Feature Analysis")
+                                    
+                                    if matched_features:
+                                        st.success("✅ **Matched Features:**")
+                                        for feature in matched_features:
+                                            st.write(f"• {feature}")
+                                    
+                                    if missing_features:
+                                        st.warning("❌ **Missing Features:**")
+                                        for feature in missing_features:
+                                            st.write(f"• {feature}")
+                                
+                                # Media display section
                                 if folder_info['exists']:
-                                    st.subheader("📁 Folder Contents")
+                                    st.subheader("📁 Property Media")
                                     
-                                    col_c, col_d, col_e = st.columns(3)
-                                    with col_c:
-                                        if folder_info['images']:
-                                            st.write("**Images:**")
-                                            for img in folder_info['images']:
-                                                st.write(f"• {img}")
+                                    # Display Images
+                                    if include_images and folder_info['image_paths']:
+                                        st.write("**📸 Images:**")
+                                        display_images(folder_info['image_paths'], property_id)
+                                    elif include_images:
+                                        st.info("No images available for this property")
                                     
-                                    with col_d:
-                                        if folder_info['videos']:
-                                            st.write("**Videos:**")
-                                            for vid in folder_info['videos']:
-                                                st.write(f"• {vid}")
-                                    
-                                    with col_e:
-                                        if folder_info['text_files']:
-                                            st.write("**Text Files:**")
-                                            for txt in folder_info['text_files']:
-                                                st.write(f"• {txt}")
+                                    # Display Videos
+                                    if include_videos and folder_info['video_paths']:
+                                        st.write("**🎥 Videos:**")
+                                        display_videos(folder_info['video_paths'], property_id)
+                                    elif include_videos:
+                                        st.info("No videos available for this property")
                                 
-                                # Show property profile data if available
+                                # Property Analysis Data
                                 if folder_info['profile_data']:
                                     st.subheader("📊 Property Analysis")
                                     
-                                    # Show original description if available
+                                    # Show original description
                                     if 'description' in folder_info['profile_data']:
-                                        st.write("**Original Description:**")
-                                        st.text_area("", value=folder_info['profile_data']['description'], height=100, disabled=True, key=f"desc_{i}_{property_id}")
+                                        st.write("**📝 Original Description:**")
+                                        with st.container():
+                                            st.text_area("", 
+                                                       value=folder_info['profile_data']['description'], 
+                                                       height=100, 
+                                                       disabled=True, 
+                                                       key=f"desc_{i}_{property_id}")
                                     
-                                    # Show analysis data
-                                    with st.expander("View Full Analysis Data"):
+                                    # Show key analysis points
+                                    if show_full_analysis:
+                                        st.write("**🔍 Full Analysis Data:**")
                                         st.json(folder_info['profile_data'])
-                                else:
-                                    st.warning("No detailed property analysis data found in folder.")
+                                    else:
+                                        # Show summary information
+                                        analysis_data = folder_info['profile_data']
+                                        if isinstance(analysis_data, dict):
+                                            summary_keys = ['property_type', 'location', 'price', 'features', 'amenities', 'condition']
+                                            summary_data = {k: v for k, v in analysis_data.items() if k in summary_keys and v}
+                                            if summary_data:
+                                                st.write("**📋 Key Features:**")
+                                                st.json(summary_data)
+                                
+                                # Show file listing if enabled (moved inside main expander to avoid nesting)
+                                if show_file_details and folder_info['exists']:
+                                    st.subheader("📂 File Details")
+                                    file_col1, file_col2, file_col3 = st.columns(3)
+                                    
+                                    with file_col1:
+                                        if folder_info['images']:
+                                            st.write("**📸 Image Files:**")
+                                            for img in folder_info['images']:
+                                                st.write(f"• {img}")
+                                        else:
+                                            st.write("**📸 Image Files:** None")
+                                    
+                                    with file_col2:
+                                        if folder_info['videos']:
+                                            st.write("**🎥 Video Files:**")
+                                            for vid in folder_info['videos']:
+                                                st.write(f"• {vid}")
+                                        else:
+                                            st.write("**🎥 Video Files:** None")
+                                    
+                                    with file_col3:
+                                        if folder_info['text_files']:
+                                            st.write("**📄 Text Files:**")
+                                            for txt in folder_info['text_files']:
+                                                st.write(f"• {txt}")
+                                        else:
+                                            st.write("**📄 Text Files:** None")
+                                
+                                st.markdown("---")
+                                
                     else:
-                        st.info("No matching properties found. Try adjusting your search terms.")
+                        st.info("🔍 No matching properties found. Try adjusting your search terms.")
+                        
+                        # Suggest alternative searches
+                        st.subheader("💡 Search Suggestions")
+                        st.write("Try searching for:")
+                        suggestions = [
+                            "apartment with balcony",
+                            "house with parking",
+                            "no AC no elevator",
+                            "newly renovated",
+                            "furnished flat",
+                            "WiFi included"
+                        ]
+                        
+                        suggestion_cols = st.columns(3)
+                        for idx, suggestion in enumerate(suggestions):
+                            with suggestion_cols[idx % 3]:
+                                if st.button(f"🔍 {suggestion}", key=f"suggest_{suggestion}"):
+                                    # Update the query and trigger search
+                                    st.session_state.suggested_query = suggestion
+                                    st.rerun()
                         
                 except Exception as e:
                     logger.error(f"Search error: {e}")
-                    st.error(f"Search failed: {e}")
-                    # Show the error details for debugging
-                    with st.expander("Error Details"):
+                    st.error(f"❌ Search failed: {str(e)}")
+                    
+                    # Show error details for debugging
+                    with st.expander("🔧 Error Details (for debugging)"):
                         st.code(str(e))
+                        st.write("**Search Parameters:**")
+                        st.write(f"- Query: {query}")
+                        st.write(f"- Max Results: {max_results}")
 
-# Cleanup section in sidebar
+# Handle suggested queries
+if 'suggested_query' in st.session_state:
+    st.info(f"🔍 Suggested search: {st.session_state.suggested_query}")  
+    # Clear the suggestion after showing it
+    del st.session_state.suggested_query
+
+# Sidebar Information
 with st.sidebar:
     st.markdown("---")
-    st.subheader("🗂️ System Info")
+    st.subheader("🗂️ System Information")
     
     # Show properties count
     properties_dir = os.path.join(os.path.dirname(__file__), "properties")
     if os.path.exists(properties_dir):
-        prop_count = len([d for d in os.listdir(properties_dir) if os.path.isdir(os.path.join(properties_dir, d))])
-        st.write(f"**Registered Properties:** {prop_count}")
+        try:
+            prop_count = len([d for d in os.listdir(properties_dir) if os.path.isdir(os.path.join(properties_dir, d))])
+            st.metric("Registered Properties", prop_count)
+        except Exception as e:
+            st.error(f"Error counting properties: {e}")
+            st.write("**Registered Properties:** Error")
     else:
         st.write("**Registered Properties:** 0")
     
     # Show logs info
     if os.path.exists(log_dir):
-        log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
-        st.write(f"**Log Files:** {len(log_files)}")
+        try:
+            log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
+            st.metric("Log Files", len(log_files))
+        except Exception as e:
+            st.error(f"Error reading logs: {e}")
     
     st.markdown("---")
     st.subheader("💡 Search Tips")
-    st.write("Use natural language like:")
-    st.write("• 'Flats contains of no ac, not having elevator'")
-    st.write("• 'Newly renovated apartment with balcony'")
-    st.write("• 'House with parking and WiFi'")
-    st.write("• 'No AC and no elevator properties'")
+    st.write("**Use natural language like:**")
+    st.code("• 'Flats contains of no ac, not having elevator'")
+    st.code("• 'Newly renovated apartment with balcony'")
+    st.code("• 'House with parking and WiFi'")
+    st.code("• 'No AC and no elevator properties'")
+    st.code("• 'Furnished apartment near metro'")
+    
+    st.markdown("---")
+    st.subheader("📊 Performance")
+    st.write(f"**Session State Items:** {len(st.session_state)}")
+    st.write(f"**Current Time:** {datetime.now().strftime('%H:%M:%S')}")
