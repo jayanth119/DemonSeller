@@ -93,7 +93,7 @@ if __name__ == "__main__":
     # Example usage
     try:
         qdrant_client = QdrantVectorStoreClient(
-            
+
         )
         search_agent = PropertySearchAgent(qdrant_client)
         query = "Flats  contains of  no ac  , not  having elevator  and  Newly renovated  "
