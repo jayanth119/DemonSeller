@@ -16,26 +16,16 @@ from agents.mainAgent import MainAnalysisAgent
 from agents.searchAgent import PropertySearchAgent
 from models.vectorStore import QdrantVectorStoreClient
 
-# Logging Setup
-log_dir = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(log_dir, exist_ok=True)
-ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(os.path.join(log_dir, f"app_{ts}.log")),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
-logger.info("Flat Broker System starting up")
 
+ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 # Initialize Agents & Vector Store
 main_agent = MainAnalysisAgent()
 vector_store = QdrantVectorStoreClient(
-
-)
+                url="https://886d811f-9d2e-41a5-8043-7354789c11a3.europe-west3-0.gcp.cloud.qdrant.io:6333",
+                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.w1474GJFXKREKXNFYEAQ_bMQ1HT3tKynM969KGHysi4",
+                collection="sample",
+                google_api_key="AIzaSyCmnhXgfxSw8iDPFsR9rm14Q8KFxntvUvk"
+        )
 search_agent = PropertySearchAgent(vector_store)
 
 # Streamlit Config & Styles
@@ -61,6 +51,13 @@ st.markdown(
         max-width: 200px;
         max-height: 150px;
       }
+      .input-requirement {
+        background-color: #e8f4f8;
+        border-left: 4px solid #1f77b4;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -82,6 +79,9 @@ def generate_unique_property_id():
 def save_uploaded_files(uploaded_files, dest_dir):
     """Save uploaded files to destination directory"""
     paths = []
+    if not uploaded_files:
+        return paths
+        
     os.makedirs(dest_dir, exist_ok=True)
     for f in uploaded_files:
         target = os.path.join(dest_dir, f.name)
@@ -89,11 +89,25 @@ def save_uploaded_files(uploaded_files, dest_dir):
             with open(target, "wb") as out:
                 out.write(f.getbuffer())
             paths.append(target)
-            logger.info(f"Saved {target}")
+            # logger.info(f"Saved {target}")
         except Exception as e:
-            logger.error(f"Failed to save {f.name}: {e}")
+            # logger.error(f"Failed to save {f.name}: {e}")
             st.error(f"Failed to save {f.name}: {e}")
     return paths
+
+def validate_registration_inputs(description, images):
+    """Validate that at least one input type is provided"""
+    has_description = bool(description and description.strip())
+    has_images = bool(images and len(images) > 0)
+    # has_videos = bool(videos and len(videos) > 0)
+    
+    return {
+        'has_description': has_description,
+        'has_images': has_images,
+        # 'has_videos': has_videos,
+        'is_valid': has_description or has_images ,
+        'provided_count': sum([has_description, has_images])
+    }
 
 def clean_and_parse(raw_text: str):
     """Clean and parse JSON response"""
@@ -104,7 +118,7 @@ def clean_and_parse(raw_text: str):
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError as e:
-        logger.warning(f"Failed to parse as JSON: {e}, returning raw string.")
+        # logger.warning(f"Failed to parse as JSON: {e}, returning raw string.")
         return {"raw_output": cleaned, "description": cleaned}
 
 def copy_files_safely(src_dir, dest_dir):
@@ -119,10 +133,10 @@ def copy_files_safely(src_dir, dest_dir):
                 dest_path = os.path.join(dest_dir, item)
                 if os.path.isfile(src_path):
                     shutil.copy2(src_path, dest_path)
-                    logger.info(f"Copied {src_path} to {dest_path}")
+                    # logger.info(f"Copied {src_path} to {dest_path}")
         return True
     except Exception as e:
-        logger.error(f"Error copying files from {src_dir} to {dest_dir}: {e}")
+        # logger.error(f"Error copying files from {src_dir} to {dest_dir}: {e}")
         return False
 
 def get_property_folder_info(property_id):
@@ -170,11 +184,13 @@ def get_property_folder_info(property_id):
                     with open(profile_file, "r", encoding='utf-8') as f:
                         folder_info['profile_data'] = json.load(f)
                 except Exception as e:
-                    logger.error(f"Failed to load profile data for {property_id}: {e}")
+                    pass 
+                    
         
-        logger.info(f"Retrieved folder info for property {property_id}")
+        
     else:
-        logger.warning(f"Property folder not found: {property_path}")
+        # logger.warning(f"Property folder not found: {property_path}")
+        print("reon")
     
     return folder_info
 
@@ -219,16 +235,16 @@ def display_videos(video_paths, property_id):
 def safe_search_properties(query, max_results=5):
     """Safely search properties with error handling"""
     try:
-        logger.info(f"Executing search query: '{query}' with max_results: {max_results}")
+        
         
         # Perform the search
         results = search_agent.search(query.strip(), k=max_results)
         
         if not results:
-            logger.info("No results returned from search agent")
+            # logger.info("No results returned from search agent")
             return []
         
-        logger.info(f"Search agent returned {len(results)} results")
+        # logger.info(f"Search agent returned {len(results)} results")
         
         # Process and validate results
         processed_results = []
@@ -257,16 +273,16 @@ def safe_search_properties(query, max_results=5):
                 }
                 
                 processed_results.append(processed_result)
-                logger.info(f"Processed result {idx + 1}: {property_id} (score: {score:.3f})")
+                # logger.info(f"Processed result {idx + 1}: {property_id} (score: {score:.3f})")
                 
             except Exception as e:
-                logger.error(f"Error processing result {idx}: {e}")
+                # logger.error(f"Error processing result {idx}: {e}")
                 continue
         
         return processed_results
         
     except Exception as e:
-        logger.error(f"Error in safe_search_properties: {e}")
+        # logger.error(f"Error in safe_search_properties: {e}")
         st.error(f"Search error: {str(e)}")
         return []
 
@@ -276,82 +292,186 @@ page = st.sidebar.radio("Navigation", ["Register Property", "Search Properties"]
 
 if page == "Register Property":
     st.header("📝 Register New Property")
-    description = st.text_area("Property Description", height=200, placeholder="Enter detailed property description...")
-    images = st.file_uploader("Upload Images", type=["jpg", "png", "jpeg", "gif", "bmp"], accept_multiple_files=True)
-    video = st.file_uploader("Upload Video", type=["mp4", "mov", "avi", "mkv", "webm"], accept_multiple_files=False)
-
+    
+    # Input requirements information
+    # st.markdown("""
+    # <div class="input-requirement">
+    #     <strong>📋 Registration Requirements:</strong><br>
+    #     You can register a property by providing <strong>at least one</strong> of the following:
+    #     <ul>
+    #         <li>📝 Property description text</li>
+    #         <li>📸 Property images</li>
+    #         <li>🎥 Property video</li>
+    #     </ul>
+    #     <em>Providing more information will result in better analysis and search results!</em>
+    # </div>
+    # """, unsafe_allow_html=True)
+    
+    # Input fields
+    description = st.text_area(
+        "Property Description (Optional)", 
+        height=200, 
+        placeholder="Enter detailed property description... (e.g., 2 BHK apartment with balcony, no AC, newly renovated)"
+    )
+    
+    images = st.file_uploader(
+        "Upload Images (Optional)", 
+        type=["jpg", "png", "jpeg", "gif", "bmp"], 
+        accept_multiple_files=True,
+        help="Upload property images to help with visual analysis"
+    )
+    
+    # videos = st.file_uploader(
+    #     "Upload Videos (Optional)", 
+    #     type=["mp4", "mov", "avi", "mkv", "webm"], 
+    #     accept_multiple_files=True,
+    #     help="Upload property videos for comprehensive analysis"
+    # )
+    
+    # Validation and preview
+    validation = validate_registration_inputs(description, images)
+    
+    # Show current input status
+    col_status1, col_status2, col_status3 = st.columns(3)
+    with col_status1:
+        if validation['has_description']:
+            st.success("✅ Description provided")
+        else:
+            st.info("📝 No description")
+    
+    with col_status2:
+        if validation['has_images']:
+            st.success(f"✅ {len(images)} image(s) uploaded")
+        else:
+            st.info("📸 No images")
+    
+    # with col_status3:
+    #     if validation['has_videos']:
+    #         st.success(f"✅ {len(videos)} video(s) uploaded")
+    #     else:
+    #         st.info("🎥 No videos")
+    
+    # Show what's provided
+    if validation['provided_count'] > 0:
+        st.info(f"📊 Inputs provided: {validation['provided_count']}/3 types")
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("Analyze Property"):
-            if not description.strip():
-                st.error("Please provide a property description.")
-            elif not images:
-                st.error("Please upload at least one image.")
-            elif not video:
-                st.error("Please upload a video.")
+        if st.button("Analyze Property", disabled=not validation['is_valid']):
+            if not validation['is_valid']:
+                st.error("❌ Please provide at least one input: description, images, or videos.")
             else:
                 with st.spinner("Analyzing property..."):
                     try:
                         # Generate unique property ID at the start
                         property_id = generate_unique_property_id()
                         st.session_state.property_id = property_id
-                        logger.info(f"Generated property ID: {property_id}")
+                        # logger.info(f"Generated property ID: {property_id}")
                         
                         # Create temporary directory for processing
                         temp_dir = tempfile.mkdtemp()
-                        logger.info(f"Created temp directory: {temp_dir}")
+                        # logger.info(f"Created temp directory: {temp_dir}")
                         
                         # Create property structure
                         prop_dir = os.path.join(temp_dir, "property")
                         img_dir = os.path.join(prop_dir, "images")
-                        vid_dir = os.path.join(prop_dir, "videos")
+                        # vid_dir = os.path.join(prop_dir, "videos")
                         text_dir = os.path.join(prop_dir, "text")
                         
                         # Create directories
-                        for directory in [img_dir, vid_dir, text_dir]:
+                        for directory in [img_dir, text_dir]:
                             os.makedirs(directory, exist_ok=True)
                         
-                        # Save uploaded files
-                        img_paths = save_uploaded_files(images, img_dir)
-                        vid_paths = save_uploaded_files([video], vid_dir)
+                        # Save uploaded files based on what was provided
+                        img_paths = []
+                        vid_paths = []
                         
-                        # Save description
-                        desc_file = os.path.join(text_dir, "description.txt")
-                        with open(desc_file, "w", encoding='utf-8') as f:
-                            f.write(description)
-                        logger.info(f"Saved description to {desc_file}")
+                        if validation['has_images']:
+                            img_paths = save_uploaded_files(images, img_dir)
+                            # logger.info(f"Saved {len(img_paths)} images")
+                        
+                        # if validation['has_videos']:
+                        #     vid_paths = save_uploaded_files(videos, vid_dir)
+                        #     logger.info(f"Saved {len(vid_paths)} videos")
+                        
+                        # Save description if provided
+                        if validation['has_description']:
+                            desc_file = os.path.join(text_dir, "description.txt")
+                            with open(desc_file, "w", encoding='utf-8') as f:
+                                f.write(description.strip())
+                            # logger.info(f"Saved description to {desc_file}")
+                        
+                        # Create a summary of what was provided for analysis
+                        input_summary = {
+                            'has_description': validation['has_description'],
+                            'has_images': validation['has_images'],
+                            # 'has_videos': validation['has_videos'],
+                            'image_count': len(images) if images else 0,
+                            # 'video_count': len(videos) if videos else 0,
+                            'description_length': len(description.strip()) if description else 0
+                        }
+                        
+                        # Save input summary for reference
+                        summary_file = os.path.join(text_dir, "input_summary.json")
+                        with open(summary_file, "w", encoding='utf-8') as f:
+                            json.dump(input_summary, f, indent=2)
                         
                         # Analyze property
-                        logger.info(f"Analyzing property in directory: {prop_dir}")
+                        # logger.info(f"Analyzing property in directory: {prop_dir}")
+                        # logger.info(f"Input summary: {input_summary}")
+                        
                         raw_profile = main_agent.analyze_property(prop_dir)
                         profile = clean_and_parse(raw_profile)
                         
-                        # Add property ID to profile
+                        # Add property ID and metadata to profile
                         profile['property_id'] = property_id
                         profile['created_at'] = datetime.now().isoformat()
+                        profile['input_summary'] = input_summary
                         
                         # Store results in session state
                         st.session_state.analysis_result = profile
                         st.session_state.temp_files = {
                             'prop_dir': prop_dir,
                             'img_dir': img_dir,
-                            'vid_dir': vid_dir,
+                            # 'vid_dir': vid_dir,
                             'text_dir': text_dir,
                             'temp_dir': temp_dir
                         }
                         
-                        logger.info("Analysis completed successfully")
-                        st.success(f"Property analysis completed! Property ID: {property_id}")
+                        # logger.info("Analysis completed successfully")
+                        st.success(f"✅ Property analysis completed! Property ID: {property_id}")
+                        
+                        # Show what was analyzed
+                        st.info(f"📊 Analyzed using: " + 
+                               ", ".join([
+                                   "Description" if validation['has_description'] else "",
+                                   f"{len(images)} Images" if validation['has_images'] else "",
+                                #    f"{len(videos)} Videos" if validation['has_videos'] else ""
+                               ]).strip(", "))
                         
                     except Exception as e:
-                        logger.error(f"Error during analysis: {e}")
-                        st.error(f"Error during analysis: {e}")
+                        # logger.error(f"Error during analysis: {e}")
+                        st.error(f"❌ Error during analysis: {e}")
 
     # Display analysis results
     if st.session_state.analysis_result and st.session_state.property_id:
         st.subheader("📊 Analysis Result")
         st.write(f"**Property ID:** {st.session_state.property_id}")
+        
+        # Show input summary in the results
+        if 'input_summary' in st.session_state.analysis_result:
+            input_sum = st.session_state.analysis_result['input_summary']
+            st.write("**Analysis Based On:**")
+            analysis_info = []
+            if input_sum['has_description']:
+                analysis_info.append(f"📝 Description ({input_sum['description_length']} chars)")
+            if input_sum['has_images']:
+                analysis_info.append(f"📸 {input_sum['image_count']} Images")
+            # if input_sum['has_videos']:
+            #     analysis_info.append(f"🎥 {input_sum['video_count']} Videos")
+            st.write(" • ".join(analysis_info))
+        
         st.json(st.session_state.analysis_result)
         
         with col2:
@@ -380,24 +500,27 @@ if page == "Register Property":
                         success = True
                         
                         success &= copy_files_safely(temp_files['img_dir'], dest_img_dir)
-                        success &= copy_files_safely(temp_files['vid_dir'], dest_vid_dir)
+                        # success &= copy_files_safely(temp_files['vid_dir'], dest_vid_dir)
                         success &= copy_files_safely(temp_files['text_dir'], dest_text_dir)
                         
                         if not success:
-                            st.error("Failed to copy some files")
-                            logger.error("File copy operation failed")
+                            st.error("❌ Failed to copy some files")
+                            # logger.error("File copy operation failed")
                         else:
                             # Prepare document for vector store
                             profile_data = st.session_state.analysis_result
                             profile_data['property_id'] = property_id
-                            profile_data['description'] = description
+                            
+                            # Use description if provided, otherwise use analysis result
+                            description_text = description.strip() if description and description.strip() else json.dumps(profile_data, ensure_ascii=False)
+                            profile_data['description'] = description_text
                             
                             # Add to vector store with property_id
                             document = {
                                 "id": property_id,  # Use property_id as document ID
                                 "property_id": property_id,
                                 "text_description": json.dumps(profile_data, ensure_ascii=False),
-                                "description": description,
+                                "description": description_text,
                                 "created_at": datetime.now().isoformat()
                             }
                             
@@ -406,29 +529,26 @@ if page == "Register Property":
                             # Force flush to ensure immediate searchability
                             try:
                                 vector_store.qdrant_client.flush(collection_name="sample", wait=True)
-                                logger.info(f"Flushed Qdrant after adding property {property_id}")
+                                # logger.info(f"Flushed Qdrant after adding property {property_id}")
                             except Exception as e:
-                                logger.warning(f"Flush operation failed: {e}")
+                                pass 
+                                # logger.warning(f"Flush operation failed: {e}")
                             
                             # Save JSON profile to file system
                             profile_file = os.path.join(dest_text_dir, "profile.json")
                             with open(profile_file, "w", encoding='utf-8') as f:
                                 json.dump(profile_data, f, indent=2, ensure_ascii=False)
                             
-                            logger.info(f"Property {property_id} registered successfully")
+                            # logger.info(f"Property {property_id} registered successfully")
                             st.success(f"✅ Property registered successfully! ID: {property_id}")
                             
                             # Clean up temp files
                             try:
                                 shutil.rmtree(temp_files['temp_dir'])
-                                logger.info("Cleaned up temporary files")
+                                # logger.info("Cleaned up temporary files")
                             except Exception as e:
-                                logger.warning(f"Failed to cleanup temp files: {e}")
-                            
-                            # Reset session state
-                            st.session_state.analysis_result = None
-                            st.session_state.temp_files = None
-                            st.session_state.property_id = None
+                                pass 
+                                # logger.warning(f"Failed to cleanup temp files: {e}")
                             
                             # Show property summary
                             st.subheader("📋 Property Summary")
@@ -437,12 +557,23 @@ if page == "Register Property":
                                 st.write(f"**Property ID:** {property_id}")
                                 st.write(f"**Created:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                             with col_b:
-                                st.write(f"**Images:** {len(os.listdir(dest_img_dir)) if os.path.exists(dest_img_dir) else 0}")
-                                st.write(f"**Videos:** {len(os.listdir(dest_vid_dir)) if os.path.exists(dest_vid_dir) else 0}")
+                                img_count = len(os.listdir(dest_img_dir)) if os.path.exists(dest_img_dir) else 0
+                                vid_count = len(os.listdir(dest_vid_dir)) if os.path.exists(dest_vid_dir) else 0
+                                st.write(f"**Images:** {img_count}")
+                                st.write(f"**Videos:** {vid_count}")
+                            
+                            # Reset session state
+                            st.session_state.analysis_result = None
+                            st.session_state.temp_files = None
+                            st.session_state.property_id = None
                 
                 except Exception as e:
-                    logger.error(f"Error during registration: {e}")
-                    st.error(f"Registration failed: {e}")
+                    # logger.error(f"Error during registration: {e}")
+                    st.error(f"❌ Registration failed: {e}")
+
+    # Show validation message at the bottom if no valid inputs
+    if not validation['is_valid']:
+        st.warning("⚠️ Please provide at least one input type to proceed with property registration.")
 
 elif page == "Search Properties":
     st.header("🔍 Search Properties")
@@ -456,7 +587,7 @@ elif page == "Search Properties":
     with col1:
         search_button = st.button("🔍 Search Properties", type="primary")
     with col2:
-        max_results = st.selectbox("Max Results", [5, 10, 15, 20], index=0)
+        max_results = st.selectbox("Max Results", [1,2 ,3,5, 10, 15, 20], index=0)
     
     # Advanced search options
     with st.expander("🔧 Advanced Search Options"):
@@ -471,7 +602,7 @@ elif page == "Search Properties":
         else:
             with st.spinner("🔍 Searching properties..."):
                 try:
-                    logger.info(f"Starting search for query: '{query}' with max_results: {max_results}")
+                    # logger.info(f"Starting search for query: '{query}' with max_results: {max_results}")
                     
                     # Perform safe search
                     results = safe_search_properties(query, max_results)
@@ -514,6 +645,20 @@ elif page == "Search Properties":
                                 with status_col2:
                                     if folder_info['profile_data']:
                                         st.success("✅ Analysis data available")
+                                        
+                                        # Show input types used for this property
+                                        if 'input_summary' in folder_info['profile_data']:
+                                            input_sum = folder_info['profile_data']['input_summary']
+                                            input_types = []
+                                            if input_sum.get('has_description'):
+                                                input_types.append("📝 Text")
+                                            if input_sum.get('has_images'):
+                                                input_types.append(f"📸 {input_sum.get('image_count', 0)} Images")
+                                            if input_sum.get('has_videos'):
+                                                input_types.append(f"🎥 {input_sum.get('video_count', 0)} Videos")
+                                            
+                                            if input_types:
+                                                st.info(f"**Registered with:** {', '.join(input_types)}")
                                     else:
                                         st.warning("⚠️ No analysis data found")
                                 
@@ -543,11 +688,11 @@ elif page == "Search Properties":
                                         st.info("No images available for this property")
                                     
                                     # Display Videos
-                                    if include_videos and folder_info['video_paths']:
-                                        st.write("**🎥 Videos:**")
-                                        display_videos(folder_info['video_paths'], property_id)
-                                    elif include_videos:
-                                        st.info("No videos available for this property")
+                                    # if include_videos and folder_info['video_paths']:
+                                    #     st.write("**🎥 Videos:**")
+                                    #     display_videos(folder_info['video_paths'], property_id)
+                                    # elif include_videos:
+                                    #     st.info("No videos available for this property")
                                 
                                 # Property Analysis Data
                                 if folder_info['profile_data']:
@@ -590,13 +735,13 @@ elif page == "Search Properties":
                                         else:
                                             st.write("**📸 Image Files:** None")
                                     
-                                    with file_col2:
-                                        if folder_info['videos']:
-                                            st.write("**🎥 Video Files:**")
-                                            for vid in folder_info['videos']:
-                                                st.write(f"• {vid}")
-                                        else:
-                                            st.write("**🎥 Video Files:** None")
+                                    # with file_col2:
+                                    #     if folder_info['videos']:
+                                    #         st.write("**🎥 Video Files:**")
+                                    #         for vid in folder_info['videos']:
+                                    #             st.write(f"• {vid}")
+                                    #     else:
+                                    #         st.write("**🎥 Video Files:** None")
                                     
                                     with file_col3:
                                         if folder_info['text_files']:
@@ -632,7 +777,7 @@ elif page == "Search Properties":
                                     st.rerun()
                         
                 except Exception as e:
-                    logger.error(f"Search error: {e}")
+                    # logger.error(f"Search error: {e}")
                     st.error(f"❌ Search failed: {str(e)}")
                     
                     # Show error details for debugging
@@ -666,12 +811,12 @@ with st.sidebar:
         st.write("**Registered Properties:** 0")
     
     # Show logs info
-    if os.path.exists(log_dir):
-        try:
-            log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
-            st.metric("Log Files", len(log_files))
-        except Exception as e:
-            st.error(f"Error reading logs: {e}")
+    # if os.path.exists(log_dir):
+    #     try:
+    #         log_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
+    #         st.metric("Log Files", len(log_files))
+    #     except Exception as e:
+    #         st.error(f"Error reading logs: {e}")
     
     st.markdown("---")
     st.subheader("💡 Search Tips")

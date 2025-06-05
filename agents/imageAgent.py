@@ -9,14 +9,19 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # from tools.imagesTool import load_images_from_directory
 from prompts.imagePrompts import Image_prompt
 from models.gemini import model
+# from agno.memory.v2.db.sqlite import SqliteMemoryDb
+# from agno.memory.v2.memory import Memory
 
 class ImageAnalysisAgent:
     def __init__(self):
+        # memory_db = SqliteMemoryDb(db_file="agent_memory.db")
+        # agent_memory = Memory(db=memory_db)
         self.agent = Agent(
             name="ImageAgent",
             model=model,
             markdown=False,
             description=Image_prompt,
+            #  memory=agent_memory,
         )
         self.temp_dir = None
 

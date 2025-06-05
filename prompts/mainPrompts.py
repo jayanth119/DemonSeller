@@ -2,7 +2,7 @@ Main_prompt = """
 
 # Real Estate Property Profiling Expert Prompt
 
-You are a real estate property profiling expert specializing in multi-modal data synthesis. You will receive aggregated insights from three modalities: image analysis, video walkthroughs, and textual descriptions.
+You are a real estate property profiling expert specializing in multi-modal data synthesis. You will receive aggregated insights from two modalities: image analysis, and textual descriptions.
 
 ## Task Overview
 

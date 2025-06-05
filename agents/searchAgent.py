@@ -1,34 +1,26 @@
-import time
 import json
 import logging
-import uuid
-from datetime import datetime
-import time
-import json
-import logging
-import uuid
-from datetime import datetime
 from typing import List, Dict, Any
+import os
 import sys
-import json
-import re
-import os 
-from pathlib import Path
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# Configure root logger
+from agno.agent import Agent
+
+
+# Setup logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-import re
-from agno.agent import Agent
+
+# Add path for relative imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models.gemini import model
 from prompts.searchPrompt import Search_prompt
 from models.vectorStore import QdrantVectorStoreClient
 
 class PropertySearchAgent:
     def __init__(self, vector_store_client: QdrantVectorStoreClient):
-        self.logger = logger  # Add logger attribute
-        self.model = model
+        self.logger = logger
+        self.model = model  # Only Gemini model
         self.vector_store = vector_store_client
         self.agent = Agent(
             name="PropertySearchAgent",
@@ -37,50 +29,43 @@ class PropertySearchAgent:
             description=Search_prompt
         )
         
-        # Define the prompt as a separate method or attribute
+        
         self.system_prompt = Search_prompt
 
     def search(self, user_query: str, k: int = 5) -> List[Dict[str, Any]]:
-        # Step 1: retrieve top-k candidates
         candidates = self.vector_store.similarity_search(user_query, k)
-        
+
         if not candidates:
             return []
-        
-        # Step 2: run filtering prompt
+
         prompt = self.system_prompt.format(
             user_query=user_query,
             vector_db_result=json.dumps(candidates, indent=2)
         )
-        
+
         try:
             response = self.agent.run(prompt)
-            # Handle different response formats
             response_content = response.content if hasattr(response, 'content') else str(response)
-            
-            # Clean the response content to extract JSON
             response_content = response_content.strip()
-            
-            # Look for JSON array in the response
+
+            # Try to extract JSON array
             json_start = response_content.find('[')
             json_end = response_content.rfind(']') + 1
-            
+
             if json_start != -1 and json_end > json_start:
                 json_str = response_content[json_start:json_end]
+                print(json_str)
                 return json.loads(json_str)
             elif "No matching properties found" in response_content:
                 return []
+            elif response_content.startswith('{') and response_content.endswith('}'):
+                result = json.loads(response_content)
+                if "message" in result:
+                    return []
             else:
-                # Try to parse as complete JSON object for no-results case
-                if response_content.startswith('{') and response_content.endswith('}'):
-                    result = json.loads(response_content)
-                    if "message" in result:
-                        return []
-                
-                # Fallback: return original candidates if parsing fails
                 self.logger.warning(f"Could not parse agent response: {response_content}")
                 return [{"property_id": c.get("id"), "score": c.get("score", 0.0)} for c in candidates]
-                
+
         except json.JSONDecodeError as e:
             self.logger.error(f"JSON decode error: {e}")
             return []
@@ -93,7 +78,10 @@ if __name__ == "__main__":
     # Example usage
     try:
         qdrant_client = QdrantVectorStoreClient(
-            
+                url="https://886d811f-9d2e-41a5-8043-7354789c11a3.europe-west3-0.gcp.cloud.qdrant.io:6333",
+                api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.w1474GJFXKREKXNFYEAQ_bMQ1HT3tKynM969KGHysi4",
+                collection="sample",
+                google_api_key="AIzaSyCmnhXgfxSw8iDPFsR9rm14Q8KFxntvUvk"
         )
         search_agent = PropertySearchAgent(qdrant_client)
         query = "Flats  contains of  no ac  , not  having elevator  and  Newly renovated  "
