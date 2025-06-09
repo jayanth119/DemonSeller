@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1RK Apartment Comparison</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            vertical-align: top;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f8f9ff;
+        }
+        
+        tr:hover {
+            background-color: #e8f0fe;
+            transform: scale(1.001);
+            transition: all 0.2s ease;
+        }
+        
+        .rent {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 16px;
+        }
+        
+        .location {
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .features {
+            font-size: 12px;
+            line-height: 1.3;
+        }
+        
+        .appliances {
+            font-size: 11px;
+            line-height: 1.2;
+        }
+        
+        .property-name {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                margin: 10px;
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            th, td {
+                padding: 8px 6px;
+                font-size: 12px;
+            }
+            
+            .rent {
+                font-size: 14px;
+            }
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 10px;
+            margin: 1px;
+        }
+        
+        .amenity-badge {
+            background: #27ae60;
+        }
+        
+        .feature-badge {
+            background: #e67e22;
+        }
+    </style>
+</head>
+<body>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Property</th>
+                        <th>Location</th>
+                        <th>Monthly Rent</th>
+                        <th>Key Features</th>
+                        <th>Amenities</th>
+                        <th>Appliances</th>
+                        <th>Contact</th>
+                        <th>Additional Info</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="property-name">1RK Apartment in Sector 52</td>
+                        <td class="location">Sector 52</td>
+                        <td class="rent">₹22,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Fully furnished</span>
+                            <span class="badge feature-badge">Modern appliances</span>
+                            <span class="badge feature-badge">Balcony</span>
+                            <span class="badge feature-badge">Wooden floor</span>
+                            <span class="badge feature-badge">Large windows</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">RO</span>
+                            <span class="badge amenity-badge">Power Backup</span>
+                            <span class="badge amenity-badge">WiFi</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Fan (2), Microwave (1), Bed (1), Sofa (1), AC (3), TV (1), Washing Machine (1), Tables (2), Chairs (4), Oven (1), Stove (1)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">1RK Apartment in Sector 89</td>
+                        <td class="location">Sector 89</td>
+                        <td class="rent">₹37,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Hardwood floors</span>
+                            <span class="badge feature-badge">Modern kitchen</span>
+                            <span class="badge feature-badge">Balcony</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">WiFi</span>
+                            <span class="badge amenity-badge">Power Backup</span>
+                            <span class="badge amenity-badge">RO</span>
+                            <span class="badge amenity-badge">Washing Machine</span>
+                            <span class="badge amenity-badge">Fully furnished</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Oven (1), Microwave (1), Bed (1), Sofa (1), TV (1), Washing Machine (1), Table (2), Chairs (4)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage, Luxurious and spacious</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">1RK Apartment in Sector 57</td>
+                        <td class="location">Sector 57</td>
+                        <td class="rent">₹20,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">High ceilings</span>
+                            <span class="badge feature-badge">Wooden floor</span>
+                            <span class="badge feature-badge">Large windows</span>
+                            <span class="badge feature-badge">Fully furnished</span>
+                            <span class="badge feature-badge">Modern appliances</span>
+                            <span class="badge feature-badge">Balcony</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">WiFi</span>
+                            <span class="badge amenity-badge">RO water purifier</span>
+                            <span class="badge amenity-badge">Power Backup</span>
+                            <span class="badge amenity-badge">24hrs High Advance Security</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Fan (2), Microwave (1), Bed (1), Sofa (1), AC (3), TV (1), Washing Machine (1), Tables (2), Chairs (4), Oven (1), Stove (1)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">1RK Apartment in Sector 69</td>
+                        <td class="location">Sector 69</td>
+                        <td class="rent">₹27,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Fully furnished</span>
+                            <span class="badge feature-badge">Modern appliances</span>
+                            <span class="badge feature-badge">Hardwood floors</span>
+                            <span class="badge feature-badge">Balcony</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">WiFi</span>
+                            <span class="badge amenity-badge">RO water purifier</span>
+                            <span class="badge amenity-badge">Power Backup</span>
+                            <span class="badge amenity-badge">24hrs High Advance Security</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Microwave (1), Bed (1), Sofa (1), TV (1), Washing Machine (1), Table (2), Chair (4), Oven (1), Dishwasher (1)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage, Luxurious and spacious</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">1RK Apartment in Sector 43</td>
+                        <td class="location">Sector 43</td>
+                        <td class="rent">₹20,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Fully furnished</span>
+                            <span class="badge feature-badge">City view</span>
+                            <span class="badge feature-badge">Wooden floor</span>
+                            <span class="badge feature-badge">Modern appliances</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">Lift</span>
+                            <span class="badge amenity-badge">24hrs High Advance Security</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Microwave (1), Bed (1), Sofa (1), AC (3), TV (1), Washing Machine (1), Fan (2), Tables (2), Chairs (4)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">1RK Apartment in Sector 79</td>
+                        <td class="location">Sector 79</td>
+                        <td class="rent">₹45,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Hardwood floors</span>
+                            <span class="badge feature-badge">Modern appliances</span>
+                            <span class="badge feature-badge">Fully furnished</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">WiFi</span>
+                            <span class="badge amenity-badge">RO water purifier</span>
+                            <span class="badge amenity-badge">Lift</span>
+                            <span class="badge amenity-badge">Covered car parking</span>
+                            <span class="badge amenity-badge">Power Backup</span>
+                            <span class="badge amenity-badge">Balcony</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Oven (1), Microwave (1), Bed (1), Sofa (1), TV (1), Washing Machine (1), Table (2), Chairs (4)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage, Luxurious and spacious</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">1BHK Apartment, DLF Phase 3</td>
+                        <td class="location">V Block, DLF Phase 3, Sector 24</td>
+                        <td class="rent">₹38,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Wooden floor</span>
+                            <span class="badge feature-badge">Fully ventilated rooms</span>
+                            <span class="badge feature-badge">Large windows</span>
+                            <span class="badge feature-badge">Park facing</span>
+                            <span class="badge feature-badge">Balcony</span>
+                            <span class="badge feature-badge">Fingerprint entrance lock</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">Inverter power backup</span>
+                            <span class="badge amenity-badge">WiFi</span>
+                            <span class="badge amenity-badge">Lift</span>
+                            <span class="badge amenity-badge">Gated society</span>
+                            <span class="badge amenity-badge">24*7 caretaker</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Fan (2), Microwave (1), Bed (1), Sofa (1), AC (2), TV (1), Washing Machine (1), Table (3), Chairs (5), Oven (1), Stove (1), Mattress (1), Side Table (1), Study Table (1), Almirah (1), RO (1), Induction (1), Geyser (1), CCTV Camera (1)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>Including maintenance, Near metro & mall</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">1RK Apartment in Sector 69 (Premium)</td>
+                        <td class="location">Sector 69</td>
+                        <td class="rent">₹50,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Fully furnished</span>
+                            <span class="badge feature-badge">Central air conditioning</span>
+                            <span class="badge feature-badge">Spacious</span>
+                            <span class="badge feature-badge">Hardwood floors</span>
+                            <span class="badge feature-badge">Balcony</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">WiFi</span>
+                            <span class="badge amenity-badge">24hrs High Advance Security</span>
+                            <span class="badge amenity-badge">Washing Machine</span>
+                            <span class="badge amenity-badge">Power Backup</span>
+                            <span class="badge amenity-badge">RO</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Oven (1), Microwave (1), Bed (2), Sofa (1), TV (2), Washing Machine (1), Tables (3), Chairs (4), WiFi (1), RO (1), Power Backup (1)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">Furnished Apartment in Sector 52</td>
+                        <td class="location">Sector 52, Near Ardee City Mall</td>
+                        <td class="rent">₹22,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Fully furnished</span>
+                            <span class="badge feature-badge">Spacious</span>
+                            <span class="badge feature-badge">Wooden floor</span>
+                            <span class="badge feature-badge">Large windows</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">Power Backup</span>
+                            <span class="badge amenity-badge">RO water purifier</span>
+                            <span class="badge amenity-badge">WiFi</span>
+                            <span class="badge amenity-badge">Washing Machine</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Fan (2), Microwave (1), Bed (1), Sofa (1), AC (3), TV (1), Washing Machine (1), Tables (2), Chairs (4), Oven (1), Stove (1), WiFi (1), RO (1)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage, Pre-occupied room, Near mall</td>
+                    </tr>
+                    <tr>
+                        <td class="property-name">1RK Apartment in Sector 28</td>
+                        <td class="location">Sector 28</td>
+                        <td class="rent">₹20,000</td>
+                        <td class="features">
+                            <span class="badge feature-badge">Fully furnished</span>
+                            <span class="badge feature-badge">Modern appliances</span>
+                            <span class="badge feature-badge">Balcony</span>
+                            <span class="badge feature-badge">Wooden floor</span>
+                            <span class="badge feature-badge">Large windows</span>
+                        </td>
+                        <td class="features">
+                            <span class="badge amenity-badge">Lift</span>
+                        </td>
+                        <td class="appliances">
+                            Fridge (1), Fan (2), Microwave (1), Bed (1), Sofa (1), AC (3), TV (1), Washing Machine (1), Tables (2), Chairs (4), Oven (1), Stove (1)
+                        </td>
+                        <td>Jain Properties</td>
+                        <td>21 Days Brokerage, Including maintenance</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+
+</body>
+</html>

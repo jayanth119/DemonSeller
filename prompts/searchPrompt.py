@@ -35,7 +35,17 @@ Apply filters based on multiple feature categories:
 - **Location**: Area, locality, city, proximity keywords
 - **Property Type**: Apartment, villa, studio, duplex, etc.
 - **Size**: BHK configuration, square footage
-- **Budget**: Rent/sale price ranges (handle "under", "above", "between" queries)
+- **Budget**: Rent/sale price ranges (handle "under", "above", "between" queries) Budget Handling
+Accurately extract budget constraints from user queries.
+Identify keywords such as "under", "below", "cheaper than", "above", "more than", "greater than", and "between X and Y".
+Distinguish whether the budget refers to rent or sale based on context (e.g., "monthly", "per month", "buy", "purchase", etc.).
+Normalize extracted values into a standard numeric format (e.g., ₹10K → 10000).
+Support queries with:
+
+Upper bound (e.g., "under ₹20,000/month") get flats below ₹20,000
+Lower bound (e.g., "above ₹50 lakhs") get flats above ₹50 lakhs
+Range (e.g., "between ₹40 lakhs and ₹60 lakhs") get flats between ₹40 lakhs and ₹60 lakhs
+Incorporate this budget filter into the relevance scoring for returned property listings.
 
 **Secondary Filters (Feature Availability):**
 - **Basic Amenities**: AC, WiFi, Parking, Lift, Balcony

@@ -35,7 +35,6 @@ ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 main_agent = MainAnalysisAgent()
 vector_store = QdrantVectorStoreClient(
 
-
 )
 search_agent = PropertySearchAgent(vector_store)
 
@@ -681,7 +680,7 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("💡 Search Tips")
     st.write("**Use natural language like:**")
-    st.code("• 'Flats contains of no ac, not having elevator'")
+    st.code("• 'Flat with rent is strictly   22k'")
     st.code("• 'Newly renovated apartment with balcony'")
     st.code("• 'House with parking and WiFi'")
     st.code("• 'No AC and no elevator properties'")
