@@ -9,6 +9,9 @@ import logging
 import sys
 from pathlib import Path
 import base64
+import dotenv
+
+dotenv.load_dotenv()
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
@@ -35,6 +38,10 @@ ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 main_agent = MainAnalysisAgent()
 vector_store = QdrantVectorStoreClient(
 
+    url=os.getenv("url"),
+    api_key=os.getenv("api_key"),
+    collection=os.getenv("collection"),
+    google_api_key=os.getenv("google_api_key"),
 )
 search_agent = PropertySearchAgent(vector_store)
 

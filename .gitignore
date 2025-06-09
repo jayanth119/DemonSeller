@@ -5,3 +5,4 @@ langtool
 __pycache__
 properties
 logs
+.env
