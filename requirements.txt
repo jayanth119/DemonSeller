@@ -1,4 +1,5 @@
 streamlit
+streamlit-option-menu
 Pillow
 python-dotenv
 qdrant-client
