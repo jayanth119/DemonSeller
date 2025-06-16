@@ -1,7 +1,5 @@
 streamlit
 Pillow
 python-dotenv
-sqlite3
-numpy
 qdrant-client
 google-generativeai
