@@ -4,4 +4,5 @@ Pillow
 python-dotenv
 qdrant-client
 google-generativeai
+google-genai
 agno
