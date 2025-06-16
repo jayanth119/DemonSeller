@@ -6,5 +6,5 @@ qdrant-client
 google-generativeai
 google-genai
 agno
-opencv-python
-opencv-python-headless
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
