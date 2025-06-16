@@ -6,3 +6,5 @@ qdrant-client
 google-generativeai
 google-genai
 agno
+opencv-python
+opencv-python-headless
