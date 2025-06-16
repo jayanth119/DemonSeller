@@ -6,3 +6,5 @@ __pycache__
 properties
 logs
 .env
+__init__.py
+__pycache__
