@@ -111,7 +111,7 @@ def main():
         # Navigation for authenticated users
         with st.sidebar:
             st.image("https://www.luxurychicagoapartments.com/wp-content/uploads/2023/03/pexels-george-becker-129494-scaled-2.jpg", 
-                   use_column_width=True)
+                   use_container_width=True)
             st.write(f"Welcome, **{st.session_state.user['full_name']}**")
             st.write(f"Role: **{st.session_state.user['role'].title()}**")
             

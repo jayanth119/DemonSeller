@@ -3,7 +3,6 @@ Flats
 .DS_Store
 langtool
 __pycache__
-properties
 logs
 .env
 __init__.py

@@ -4,4 +4,4 @@ import sys
 import time 
 
 
-model = Gemini(id="gemini-1.5-flash" , api_key="AIzaSyCmnhXgfxSw8iDPFsR9rm14Q8KFxntvUvk")
+model = Gemini(id="gemini-1.5-flash" , api_key=os.getenv("google_api_key"))

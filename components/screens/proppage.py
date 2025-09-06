@@ -195,7 +195,7 @@ def search_properties_page(search_agent):
                         cols = st.columns(3)
                         for idx, img in enumerate(images):
                             with cols[idx % 3]:
-                                st.image(io.BytesIO(img['image_data']), caption=img['image_name'], use_column_width=True)
+                                st.image(io.BytesIO(img['image_data']), caption=img['image_name'], use_container_width=True)
                 
                 # Property Analysis Data
                 if property_data:
